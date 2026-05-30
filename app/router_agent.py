@@ -49,29 +49,52 @@ Message:
 
 async def classify_and_process(text: str, sender: str):
     print(f"Classifying message from {sender}...")
-    result = classify_message(text)
+
+    try:
+        result = classify_message(text)
+    except Exception as e:
+        print(f"Gemini error: {e}")
+        await send_message(
+            sender,
+            "MAITX is temporarily busy due to high demand. Please try again in a few minutes."
+        )
+        return
+
     intent = result.get("intent", "JUNK")
     keyword = result.get("keyword")
     print(f"Intent: {intent} | Keyword: {keyword}")
+
     if intent == "JUNK":
         print("Junk message ignored")
         return
+
     elif intent == "NEW_JD":
-        job = extract_job_details(text)
-        if job:
-            await save_job(job, sender)
-            print(f"Saved: {job.company_name} - {job.role}")
+        try:
+            job = extract_job_details(text)
+            if job:
+                await save_job(job, sender)
+                print(f"Saved: {job.company_name} - {job.role}")
+                await send_message(
+                    sender,
+                    f"Got it! Saved *{job.company_name}* - *{job.role}*\n"
+                    f"Deadline: {job.deadline}\n"
+                    f"Stipend: {job.stipend}\n"
+                    f"Format: {job.work_format}\n"
+                    f"Apply: {job.apply_link}"
+                )
+            else:
+                print("Extraction failed")
+                await send_message(
+                    sender,
+                    "Sorry, I could not extract job details. Please try forwarding the full JD again."
+                )
+        except Exception as e:
+            print(f"Extraction error: {e}")
             await send_message(
                 sender,
-                f"Got it! Saved *{job.company_name}* - *{job.role}*\n"
-                f"Deadline: {job.deadline}\n"
-                f"Stipend: {job.stipend}\n"
-                f"Format: {job.work_format}\n"
-                f"Apply: {job.apply_link}"
+                "MAITX is temporarily busy. Please try again in a few minutes."
             )
-        else:
-            print("Extraction failed")
-            await send_message(sender, "Sorry, I could not extract job details from that message. Try forwarding the full JD.")
+
     elif intent == "UPDATE":
         if keyword:
             existing = await get_recent_job_by_keyword(keyword, sender)
@@ -80,5 +103,7 @@ async def classify_and_process(text: str, sender: str):
                 if updated:
                     await update_job(existing["_id"], updated)
                     print(f"Updated record for {keyword}")
+                    await send_message(sender, f"Updated the *{keyword}* opportunity!")
             else:
                 print(f"No existing record found for: {keyword}")
+                await send_message(sender, f"Could not find a saved record for *{keyword}*.")
