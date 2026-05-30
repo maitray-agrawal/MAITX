@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, BackgroundTasks
+content = """from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import PlainTextResponse
 from app.router_agent import classify_and_process
 from app.pdf_handler import download_and_extract_pdf
@@ -97,3 +97,8 @@ async def process_pdf_message(media_id: str, sender: str, filename: str):
 
     print(f"PDF text extracted, processing through agent...")
     await classify_and_process(text, sender)
+"""
+
+with open("app/webhook.py", "w", encoding="utf-8") as f:
+    f.write(content)
+print("webhook.py updated with PDF support")
