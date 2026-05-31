@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
 const API_BASE = "https://web-production-c1e12.up.railway.app";
@@ -12,11 +12,7 @@ function App() {
   );
   const [inputNumber, setInputNumber] = useState("");
 
-  useEffect(() => {
-    if (userId) fetchJobs();
-  }, [userId]);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/jobs/${userId}`);
@@ -26,7 +22,11 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId) fetchJobs();
+  }, [userId, fetchJobs]);
 
   const handleLogin = () => {
     const val = inputNumber.trim();
@@ -396,4 +396,4 @@ const styles = {
   }
 };
 
-export default App;
+export default App;git status
