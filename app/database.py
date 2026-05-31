@@ -3,14 +3,25 @@ from app.extractor_agent import JobRecord
 from datetime import datetime
 from bson import ObjectId
 import os
+import certifi
 
 MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client["tnp_tracker"]
 jobs_collection = db["jobs"]
 
 
 async def save_job(job: JobRecord, user_id: str):
+    from datetime import timedelta
+    recent = jobs_collection.find_one({
+        "user_id": user_id,
+        "company_name": job.company_name,
+        "role": job.role,
+        "created_at": {"$gte": datetime.utcnow() - timedelta(minutes=5)}
+    })
+    if recent:
+        print(f"Duplicate detected, skipping: {job.company_name} - {job.role}")
+        return None
     doc = job.dict()
     doc["user_id"] = user_id
     doc["notified"] = False
@@ -39,9 +50,5 @@ async def update_job(job_id: ObjectId, updated: JobRecord):
 
 
 async def get_jobs_near_deadline():
-    from datetime import timedelta
-    now = datetime.utcnow()
-    cursor = jobs_collection.find({
-        "notified": False,
-    })
+    cursor = jobs_collection.find({"notified": False})
     return list(cursor)
