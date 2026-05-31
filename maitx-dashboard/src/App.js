@@ -3,181 +3,166 @@ import axios from "axios";
 
 const API_BASE = "https://web-production-c1e12.up.railway.app";
 
-const theme = {
-  bg: "#0a0a0f",
-  surface: "#111118",
-  card: "#16161f",
-  cardHover: "#1c1c28",
-  border: "#2a2a3a",
-  borderAccent: "#3d3d55",
+const G = {
+  bg: "#080810",
+  b1: "#0f0f1a",
+  b2: "#14141f",
+  b3: "#1a1a28",
+  border: "#25253a",
+  borderHi: "#35355a",
   accent: "#7c6af7",
-  accentDim: "#7c6af722",
-  accentBorder: "#7c6af744",
+  accentSoft: "#7c6af712",
+  accentBorder: "#7c6af740",
   green: "#34d399",
-  greenDim: "#34d39918",
-  greenBorder: "#34d39933",
-  red: "#f87171",
-  redDim: "#f8717118",
-  redBorder: "#f8717133",
+  greenSoft: "#34d39912",
+  greenBorder: "#34d39930",
   amber: "#fbbf24",
-  amberDim: "#fbbf2415",
-  textPrimary: "#f0f0fa",
-  textSecondary: "#8888aa",
-  textMuted: "#555570",
+  amberSoft: "#fbbf2412",
+  red: "#f87171",
+  redSoft: "#f8717112",
+  t1: "#eeeef8",
+  t2: "#8888aa",
+  t3: "#44445a",
 };
 
-const globalStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: ${theme.bg}; color: ${theme.textPrimary}; font-family: 'DM Sans', sans-serif; }
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: ${theme.border}; border-radius: 2px; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
-`;
+const injectStyles = () => {
+  if (document.getElementById("maitx-styles")) return;
+  const s = document.createElement("style");
+  s.id = "maitx-styles";
+  s.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:${G.bg};color:${G.t1};font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
+    ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:${G.border};border-radius:2px}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes shimmer{from{background-position:-400% 0}to{background-position:400% 0}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .bento-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+    .bento-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}
+    @media(max-width:600px){.bento-grid{grid-template-columns:1fr!important}.bento-grid-2{grid-template-columns:1fr!important}}
+    .job-card{background:${G.b2};border-radius:16px;padding:18px 20px;margin-bottom:8px;border:1px solid ${G.border};transition:all 0.18s ease;animation:fadeUp 0.3s ease both}
+    .job-card:hover{background:${G.b3};border-color:${G.borderHi};transform:translateY(-1px)}
+    .btn{cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all 0.15s ease}
+    .btn:active{transform:scale(0.97)}
+    input:focus{outline:none;border-color:${G.accent}!important}
+    .filter-btn{padding:7px 16px;border-radius:9px;border:1px solid ${G.border};background:transparent;color:${G.t2};cursor:pointer;font-size:0.8rem;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+    .filter-btn.active{border-color:${G.accent};background:${G.accentSoft};color:${G.accent};font-weight:500}
+    .shimmer{background:linear-gradient(90deg,${G.b3} 25%,${G.border} 50%,${G.b3} 75%);background-size:400% 100%;animation:shimmer 1.8s infinite}
+  `;
+  document.head.appendChild(s);
+};
+
+function BentoStat({ label, value, color, soft, sub }) {
+  return (
+    <div style={{ background: G.b2, borderRadius: 16, padding: "20px", border: `1px solid ${G.border}`, position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", bottom: -16, right: -16, width: 64, height: 64, borderRadius: "50%", background: soft }} />
+      <p style={{ fontSize: "0.7rem", color: G.t3, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>{label}</p>
+      <p style={{ fontSize: "2.4rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color, lineHeight: 1 }}>{value}</p>
+      {sub && <p style={{ fontSize: "0.72rem", color: G.t3, marginTop: 6 }}>{sub}</p>}
+    </div>
+  );
+}
+
+function ApplyRateBox({ jobs }) {
+  const total = jobs.length;
+  const applied = jobs.filter(j => j.applied).length;
+  const pct = total > 0 ? Math.round((applied / total) * 100) : 0;
+  const bars = 8;
+  return (
+    <div style={{ background: G.b2, borderRadius: 16, padding: "20px", border: `1px solid ${G.border}`, gridColumn: "span 2" }}>
+      <p style={{ fontSize: "0.7rem", color: G.t3, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 14 }}>Apply rate</p>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: "2.4rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.green }}>{pct}%</span>
+        <span style={{ fontSize: "0.8rem", color: G.t3 }}>{applied} of {total} applied</span>
+      </div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {Array.from({ length: bars }).map((_, i) => (
+          <div key={i} style={{
+            flex: 1, height: 6, borderRadius: 3,
+            background: i < Math.round((pct / 100) * bars) ? G.green : G.border
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecentActivity({ jobs }) {
+  const recent = [...jobs].slice(0, 3);
+  return (
+    <div style={{ background: G.b2, borderRadius: 16, padding: "20px", border: `1px solid ${G.border}`, gridColumn: "span 3" }}>
+      <p style={{ fontSize: "0.7rem", color: G.t3, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 14 }}>Recent saves</p>
+      {recent.length === 0
+        ? <p style={{ color: G.t3, fontSize: "0.82rem" }}>No jobs saved yet</p>
+        : recent.map((j, i) => (
+          <div key={j._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: i < recent.length - 1 ? 10 : 0, marginBottom: i < recent.length - 1 ? 10 : 0, borderBottom: i < recent.length - 1 ? `1px solid ${G.border}` : "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: j.applied ? G.green : G.accent, flexShrink: 0 }} />
+              <div>
+                <p style={{ fontSize: "0.85rem", fontWeight: 500, color: G.t1 }}>{j.company_name}</p>
+                <p style={{ fontSize: "0.75rem", color: G.t2 }}>{j.role}</p>
+              </div>
+            </div>
+            <span style={{ fontSize: "0.68rem", color: j.applied ? G.green : G.accent, background: j.applied ? G.greenSoft : G.accentSoft, border: `1px solid ${j.applied ? G.greenBorder : G.accentBorder}`, borderRadius: 20, padding: "2px 8px" }}>
+              {j.applied ? "Applied" : "Pending"}
+            </span>
+          </div>
+        ))
+      }
+    </div>
+  );
+}
 
 function SkeletonCard() {
   return (
-    <div style={{ background: theme.card, borderRadius: 16, padding: 24, marginBottom: 12, border: `1px solid ${theme.border}` }}>
-      {[["60%", 14], ["40%", 12], ["80%", 10]].map(([w, mt], i) => (
-        <div key={i} style={{
-          height: 14, width: w, borderRadius: 7, marginTop: mt,
-          background: `linear-gradient(90deg, ${theme.border} 25%, ${theme.borderAccent} 50%, ${theme.border} 75%)`,
-          backgroundSize: "200% 100%",
-          animation: `shimmer 1.5s infinite ${i * 0.2}s`
-        }} />
+    <div style={{ background: G.b2, borderRadius: 16, padding: 20, marginBottom: 8, border: `1px solid ${G.border}` }}>
+      {[[70, 14], [45, 10], [85, 10]].map(([w, mt], i) => (
+        <div key={i} className="shimmer" style={{ height: 13, width: `${w}%`, borderRadius: 6, marginTop: mt }} />
       ))}
     </div>
   );
 }
 
-function StatCard({ num, label, color, icon }) {
-  return (
-    <div style={{
-      flex: 1, background: theme.card, borderRadius: 16, padding: "20px 16px",
-      border: `1px solid ${theme.border}`, textAlign: "center", position: "relative", overflow: "hidden"
-    }}>
-      <div style={{
-        position: "absolute", top: -20, right: -20, width: 80, height: 80,
-        borderRadius: "50%", background: color + "15"
-      }} />
-      <div style={{ fontSize: 28, marginBottom: 4 }}>{icon}</div>
-      <div style={{ fontSize: "1.8rem", fontWeight: 700, color, fontFamily: "'Syne', sans-serif", lineHeight: 1 }}>{num}</div>
-      <div style={{ fontSize: "0.78rem", color: theme.textMuted, marginTop: 6, letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</div>
-    </div>
-  );
-}
-
 function JobCard({ job, onMarkApplied, onDelete, index }) {
-  const [hovering, setHovering] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    await onDelete(job._id);
-  };
-
   return (
-    <div
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      style={{
-        background: hovering ? theme.cardHover : theme.card,
-        borderRadius: 16,
-        padding: "20px 24px",
-        marginBottom: 12,
-        border: `1px solid ${hovering ? theme.borderAccent : theme.border}`,
-        borderLeft: `3px solid ${job.applied ? theme.green : theme.accent}`,
-        transition: "all 0.2s ease",
-        animation: `fadeUp 0.3s ease ${index * 0.05}s both`,
-        opacity: deleting ? 0.4 : 1,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+    <div className="job-card" style={{ animationDelay: `${index * 0.04}s`, borderLeft: `3px solid ${job.applied ? G.green : G.accent}`, borderRadius: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 600, fontFamily: "'Syne', sans-serif", color: theme.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {job.company_name}
-            </h3>
-            {job.applied && (
-              <span style={{ fontSize: "0.65rem", background: theme.greenDim, color: theme.green, border: `1px solid ${theme.greenBorder}`, borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap", fontWeight: 500 }}>
-                ✓ Applied
-              </span>
-            )}
-          </div>
-          <p style={{ fontSize: "0.88rem", color: theme.accent, fontWeight: 500 }}>{job.role}</p>
+          <p style={{ fontWeight: 700, fontFamily: "'Syne',sans-serif", fontSize: "0.95rem", color: G.t1, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{job.company_name}</p>
+          <p style={{ fontSize: "0.82rem", color: G.accent }}>{job.role}</p>
         </div>
-        {!job.applied && (
-          <span style={{ fontSize: "0.65rem", background: theme.accentDim, color: theme.accent, border: `1px solid ${theme.accentBorder}`, borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap", fontWeight: 500 }}>
-            Pending
-          </span>
-        )}
+        <span style={{ fontSize: "0.65rem", borderRadius: 20, padding: "2px 9px", flexShrink: 0, marginLeft: 10, fontWeight: 500, background: job.applied ? G.greenSoft : G.accentSoft, color: job.applied ? G.green : G.accent, border: `1px solid ${job.applied ? G.greenBorder : G.accentBorder}` }}>
+          {job.applied ? "✓ Applied" : "Pending"}
+        </span>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-        {job.deadline && <Chip icon="📅" text={job.deadline} />}
-        {job.stipend && <Chip icon="💰" text={job.stipend} />}
-        {job.work_format && <Chip icon="🏢" text={job.work_format} />}
-        {job.location && <Chip icon="📍" text={job.location} />}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+        {[["📅", job.deadline], ["💰", job.stipend], ["🏢", job.work_format], ["📍", job.location]].filter(([, v]) => v).map(([icon, val]) => (
+          <span key={val} style={{ fontSize: "0.73rem", color: G.t2, background: G.b1, border: `1px solid ${G.border}`, borderRadius: 6, padding: "2px 8px" }}>{icon} {val}</span>
+        ))}
       </div>
 
-      {job.eligibility && (
-        <p style={{ fontSize: "0.78rem", color: theme.textSecondary, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>🎓</span> {job.eligibility}
-        </p>
-      )}
-      {job.extra_notes && (
-        <p style={{ fontSize: "0.75rem", color: theme.textMuted, marginBottom: 10, fontStyle: "italic" }}>
-          📝 {job.extra_notes}
-        </p>
-      )}
+      {job.eligibility && <p style={{ fontSize: "0.75rem", color: G.t3, marginBottom: 4 }}>🎓 {job.eligibility}</p>}
+      {job.extra_notes && <p style={{ fontSize: "0.73rem", color: G.t3, fontStyle: "italic", marginBottom: 8 }}>📝 {job.extra_notes}</p>}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 7, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
         {job.apply_link && (
-          <a href={job.apply_link} target="_blank" rel="noreferrer" style={{
-            background: theme.accent, color: "#fff", padding: "7px 16px",
-            borderRadius: 8, textDecoration: "none", fontSize: "0.82rem", fontWeight: 600,
-            letterSpacing: "0.02em", transition: "opacity 0.15s"
-          }}>
-            Apply Now →
+          <a href={job.apply_link} target="_blank" rel="noreferrer" style={{ background: G.accent, color: "#fff", padding: "6px 14px", borderRadius: 8, textDecoration: "none", fontSize: "0.78rem", fontWeight: 600 }}>
+            Apply →
           </a>
         )}
         {!job.applied && (
-          <button onClick={() => onMarkApplied(job._id)} style={{
-            background: theme.greenDim, color: theme.green, padding: "7px 14px",
-            borderRadius: 8, border: `1px solid ${theme.greenBorder}`, cursor: "pointer",
-            fontSize: "0.82rem", fontWeight: 500
-          }}>
-            Mark Applied
+          <button className="btn" onClick={() => onMarkApplied(job._id)} style={{ background: G.greenSoft, color: G.green, padding: "6px 12px", borderRadius: 8, border: `1px solid ${G.greenBorder}`, fontSize: "0.78rem" }}>
+            Mark applied
           </button>
         )}
-        <button onClick={handleDelete} style={{
-          background: "transparent", color: theme.textMuted, padding: "7px 12px",
-          borderRadius: 8, border: `1px solid ${theme.border}`, cursor: "pointer",
-          fontSize: "0.82rem", marginLeft: "auto"
-        }}>
-          ✕
-        </button>
+        <button className="btn" onClick={() => onDelete(job._id)} style={{ background: "transparent", color: G.t3, padding: "6px 10px", borderRadius: 8, border: `1px solid ${G.border}`, fontSize: "0.78rem", marginLeft: "auto" }}>✕</button>
       </div>
     </div>
   );
 }
 
-function Chip({ icon, text }) {
-  return (
-    <span style={{
-      background: "#1e1e2e", color: theme.textSecondary, padding: "3px 10px",
-      borderRadius: 6, fontSize: "0.75rem", border: `1px solid ${theme.border}`,
-      display: "flex", alignItems: "center", gap: 4
-    }}>
-      <span style={{ fontSize: "0.7rem" }}>{icon}</span> {text}
-    </span>
-  );
-}
-
-function App() {
+export default function App() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -185,21 +170,21 @@ function App() {
   const [userId, setUserId] = useState(localStorage.getItem("maitx_user") || "");
   const [inputNumber, setInputNumber] = useState("");
 
+  useEffect(() => { injectStyles(); }, []);
+
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/jobs/${userId}`);
       setJobs(res.data);
     } catch (err) {
-      console.error("Error fetching jobs:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }, [userId]);
 
-  useEffect(() => {
-    if (userId) fetchJobs();
-  }, [userId, fetchJobs]);
+  useEffect(() => { if (userId) fetchJobs(); }, [userId, fetchJobs]);
 
   const handleLogin = () => {
     const val = inputNumber.trim();
@@ -211,173 +196,117 @@ function App() {
     setUserId(""); setJobs([]); setLoading(true);
   };
 
-  const markApplied = async (jobId) => {
-    await axios.patch(`${API_BASE}/api/jobs/${jobId}/applied`);
-    setJobs(jobs.map(j => j._id === jobId ? { ...j, applied: true } : j));
+  const markApplied = async (id) => {
+    await axios.patch(`${API_BASE}/api/jobs/${id}/applied`);
+    setJobs(jobs.map(j => j._id === id ? { ...j, applied: true } : j));
   };
 
-  const deleteJob = async (jobId) => {
-    await axios.delete(`${API_BASE}/api/jobs/${jobId}`);
-    setJobs(jobs.filter(j => j._id !== jobId));
+  const deleteJob = async (id) => {
+    await axios.delete(`${API_BASE}/api/jobs/${id}`);
+    setJobs(jobs.filter(j => j._id !== id));
   };
 
   const filtered = jobs.filter(j => {
-    const matchFilter = filter === "applied" ? j.applied : filter === "pending" ? !j.applied : true;
-    const matchSearch = !search || [j.company_name, j.role, j.location].some(f => f?.toLowerCase().includes(search.toLowerCase()));
-    return matchFilter && matchSearch;
+    const mf = filter === "applied" ? j.applied : filter === "pending" ? !j.applied : true;
+    const ms = !search || [j.company_name, j.role, j.location].some(f => f?.toLowerCase().includes(search.toLowerCase()));
+    return mf && ms;
   });
 
   if (!userId) {
     return (
-      <>
-        <style>{globalStyles}</style>
-        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 16px", background: theme.bg }}>
-          <div style={{ position: "fixed", top: "20%", left: "50%", transform: "translateX(-50%)", width: 600, height: 600, borderRadius: "50%", background: `radial-gradient(circle, ${theme.accent}08 0%, transparent 70%)`, pointerEvents: "none" }} />
-          <div style={{ textAlign: "center", marginBottom: 48, animation: "fadeUp 0.5s ease" }}>
-            <div style={{ fontSize: "0.72rem", letterSpacing: "0.2em", color: theme.accent, textTransform: "uppercase", marginBottom: 16, fontWeight: 500 }}>
-              TnP Internship Tracker
-            </div>
-            <h1 style={{ fontSize: "4rem", fontWeight: 800, fontFamily: "'Syne', sans-serif", color: theme.textPrimary, letterSpacing: "-0.02em", lineHeight: 1 }}>
-              MAITX
-            </h1>
-            <p style={{ color: theme.textSecondary, marginTop: 12, fontSize: "0.95rem" }}>
-              Forward TnP messages → AI extracts → Dashboard tracks
-            </p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: G.bg }}>
+        <div style={{ width: "100%", maxWidth: 400, animation: "fadeUp 0.4s ease" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <p style={{ fontSize: "0.68rem", letterSpacing: "0.2em", color: G.accent, textTransform: "uppercase", marginBottom: 12 }}>TnP Internship Tracker</p>
+            <h1 style={{ fontSize: "3.5rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1, letterSpacing: "-0.02em" }}>MAITX</h1>
+            <p style={{ color: G.t2, marginTop: 10, fontSize: "0.88rem" }}>AI-powered job tracking via WhatsApp</p>
           </div>
-
-          <div style={{
-            background: theme.card, borderRadius: 20, padding: 32, width: "100%", maxWidth: 400,
-            border: `1px solid ${theme.border}`, animation: "fadeUp 0.5s ease 0.1s both"
-          }}>
-            <p style={{ color: theme.textSecondary, marginBottom: 20, fontSize: "0.88rem", textAlign: "center" }}>
-              Enter your WhatsApp number to access your jobs
-            </p>
+          <div style={{ background: G.b2, borderRadius: 20, padding: 28, border: `1px solid ${G.border}` }}>
+            <p style={{ color: G.t2, fontSize: "0.84rem", marginBottom: 16, textAlign: "center" }}>Enter your WhatsApp number</p>
             <input
-              type="tel"
-              placeholder="91XXXXXXXXXX"
-              value={inputNumber}
-              onChange={(e) => setInputNumber(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
-              style={{
-                background: "#0f0f18", border: `1px solid ${theme.border}`, borderRadius: 10,
-                padding: "13px 16px", color: theme.textPrimary, fontSize: "1rem", width: "100%",
-                outline: "none", marginBottom: 12, fontFamily: "'DM Sans', sans-serif",
-                transition: "border-color 0.2s"
-              }}
-              onFocus={e => e.target.style.borderColor = theme.accent}
-              onBlur={e => e.target.style.borderColor = theme.border}
+              type="tel" placeholder="91XXXXXXXXXX" value={inputNumber}
+              onChange={e => setInputNumber(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleLogin(); }}
+              style={{ background: G.b1, border: `1px solid ${G.border}`, borderRadius: 10, padding: "12px 14px", color: G.t1, fontSize: "0.95rem", width: "100%", marginBottom: 10, fontFamily: "'DM Sans',sans-serif" }}
             />
-            <button onClick={handleLogin} style={{
-              background: theme.accent, color: "#fff", padding: "13px 24px", borderRadius: 10,
-              border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.95rem", width: "100%",
-              fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.02em", transition: "opacity 0.15s"
-            }}
-              onMouseEnter={e => e.target.style.opacity = "0.85"}
-              onMouseLeave={e => e.target.style.opacity = "1"}
-            >
+            <button className="btn" onClick={handleLogin} style={{ background: G.accent, color: "#fff", padding: "12px", borderRadius: 10, fontSize: "0.92rem", fontWeight: 600, width: "100%", fontFamily: "'DM Sans',sans-serif" }}>
               View My Jobs
             </button>
-            <p style={{ color: theme.textMuted, fontSize: "0.72rem", textAlign: "center", marginTop: 16 }}>
-              Include country code · e.g. 91XXXXXXXXXX for India
-            </p>
+            <p style={{ color: G.t3, fontSize: "0.7rem", textAlign: "center", marginTop: 14 }}>Include country code · 91XXXXXXXXXX for India</p>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
+  const pending = jobs.filter(j => !j.applied).length;
+  const applied = jobs.filter(j => j.applied).length;
+
   return (
-    <>
-      <style>{globalStyles}</style>
-      <div style={{ minHeight: "100vh", background: theme.bg, padding: "24px 16px", maxWidth: 760, margin: "0 auto" }}>
+    <div style={{ minHeight: "100vh", background: G.bg, padding: "24px 16px 48px", maxWidth: 820, margin: "0 auto" }}>
 
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40 }}>
-          <div>
-            <div style={{ fontSize: "0.68rem", letterSpacing: "0.18em", color: theme.accent, textTransform: "uppercase", marginBottom: 4 }}>
-              TnP Tracker
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+        <div>
+          <p style={{ fontSize: "0.65rem", letterSpacing: "0.18em", color: G.accent, textTransform: "uppercase", marginBottom: 4 }}>Dashboard</p>
+          <h1 style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1, letterSpacing: "-0.02em" }}>MAITX</h1>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn" onClick={fetchJobs} style={{ background: G.b2, color: G.t2, padding: "7px 14px", borderRadius: 9, border: `1px solid ${G.border}`, fontSize: "0.8rem", fontFamily: "'DM Sans',sans-serif" }}>↻</button>
+          <button className="btn" onClick={handleLogout} style={{ background: "transparent", color: G.t3, padding: "7px 14px", borderRadius: 9, border: `1px solid ${G.border}`, fontSize: "0.8rem", fontFamily: "'DM Sans',sans-serif" }}>Logout</button>
+        </div>
+      </div>
+
+      {/* Bento stats row */}
+      <div className="bento-grid">
+        <BentoStat label="Total saved" value={jobs.length} color={G.accent} soft={G.accentSoft} />
+        <BentoStat label="Pending" value={pending} color={G.amber} soft={G.amberSoft} sub={pending > 0 ? "Don't miss deadlines" : "All caught up!"} />
+        <BentoStat label="Applied" value={applied} color={G.green} soft={G.greenSoft} />
+      </div>
+
+      {/* Bento second row */}
+      <div className="bento-grid">
+        <ApplyRateBox jobs={jobs} />
+        <RecentActivity jobs={jobs} />
+      </div>
+
+      {/* Search + filter */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          type="text" placeholder="Search jobs..." value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 160, background: G.b2, border: `1px solid ${G.border}`, borderRadius: 10, padding: "8px 13px", color: G.t1, fontSize: "0.84rem", fontFamily: "'DM Sans',sans-serif" }}
+        />
+        <div style={{ display: "flex", gap: 6 }}>
+          {["all", "pending", "applied"].map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`filter-btn${filter === f ? " active" : ""}`}>
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!loading && (
+        <p style={{ fontSize: "0.73rem", color: G.t3, marginBottom: 12, letterSpacing: "0.04em" }}>
+          {filtered.length} {filtered.length === 1 ? "job" : "jobs"}{filter !== "all" ? ` · ${filter}` : ""}{search ? ` · "${search}"` : ""}
+        </p>
+      )}
+
+      {/* Job list */}
+      {loading
+        ? [1, 2, 3].map(i => <SkeletonCard key={i} />)
+        : filtered.length === 0
+          ? (
+            <div style={{ textAlign: "center", padding: "50px 0", color: G.t3 }}>
+              <p style={{ fontSize: "2rem", marginBottom: 12 }}>📭</p>
+              <p style={{ fontSize: "0.9rem" }}>No jobs found</p>
+              <p style={{ fontSize: "0.78rem", marginTop: 6 }}>Forward TnP messages to the WhatsApp bot to save jobs</p>
             </div>
-            <h1 style={{ fontSize: "2.2rem", fontWeight: 800, fontFamily: "'Syne', sans-serif", color: theme.textPrimary, letterSpacing: "-0.02em", lineHeight: 1 }}>
-              MAITX
-            </h1>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={fetchJobs} style={{
-              background: "transparent", color: theme.textSecondary, border: `1px solid ${theme.border}`,
-              borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: "0.82rem"
-            }}>
-              ↻ Refresh
-            </button>
-            <button onClick={handleLogout} style={{
-              background: "transparent", color: theme.textMuted, border: `1px solid ${theme.border}`,
-              borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: "0.82rem"
-            }}>
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
-          <StatCard num={jobs.length} label="Total" color={theme.accent} icon="📋" />
-          <StatCard num={jobs.filter(j => !j.applied).length} label="Pending" color={theme.amber} icon="⏳" />
-          <StatCard num={jobs.filter(j => j.applied).length} label="Applied" color={theme.green} icon="✅" />
-        </div>
-
-        {/* Search + Filter */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
-          <input
-            type="text"
-            placeholder="Search company, role, location..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              flex: 1, minWidth: 200, background: theme.card, border: `1px solid ${theme.border}`,
-              borderRadius: 10, padding: "9px 14px", color: theme.textPrimary, fontSize: "0.88rem",
-              outline: "none", fontFamily: "'DM Sans', sans-serif"
-            }}
-            onFocus={e => e.target.style.borderColor = theme.accent}
-            onBlur={e => e.target.style.borderColor = theme.border}
-          />
-          <div style={{ display: "flex", gap: 6 }}>
-            {["all", "pending", "applied"].map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: "9px 18px", borderRadius: 10, border: `1px solid ${filter === f ? theme.accent : theme.border}`,
-                background: filter === f ? theme.accentDim : "transparent",
-                color: filter === f ? theme.accent : theme.textSecondary,
-                cursor: "pointer", fontSize: "0.82rem", fontWeight: filter === f ? 600 : 400,
-                transition: "all 0.15s", fontFamily: "'DM Sans', sans-serif"
-              }}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Results count */}
-        {!loading && (
-          <p style={{ fontSize: "0.78rem", color: theme.textMuted, marginBottom: 16, letterSpacing: "0.05em" }}>
-            {filtered.length} {filtered.length === 1 ? "job" : "jobs"} {filter !== "all" ? `· ${filter}` : ""}{search ? ` · "${search}"` : ""}
-          </p>
-        )}
-
-        {/* Job list */}
-        {loading ? (
-          [1, 2, 3].map(i => <SkeletonCard key={i} />)
-        ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 0", color: theme.textMuted }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: 16 }}>📭</div>
-            <p style={{ fontSize: "0.95rem" }}>No jobs found</p>
-            <p style={{ fontSize: "0.8rem", marginTop: 6 }}>Forward TnP messages to the bot to save jobs</p>
-          </div>
-        ) : (
-          filtered.map((job, i) => (
+          )
+          : filtered.map((job, i) => (
             <JobCard key={job._id} job={job} index={i} onMarkApplied={markApplied} onDelete={deleteJob} />
           ))
-        )}
-      </div>
-    </>
+      }
+    </div>
   );
 }
-
-export default App;
