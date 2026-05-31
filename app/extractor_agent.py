@@ -1,16 +1,11 @@
 from pydantic import BaseModel
 from typing import Optional
-from google import genai
+from groq import Groq
 import os
 import json
 
-_client = None
-
 def get_client():
-    global _client
-    if _client is None:
-        _client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    return _client
+    return Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 class JobRecord(BaseModel):
@@ -35,17 +30,16 @@ Do NOT add any explanation. Return ONLY the JSON object.
 Text:
 {text}
 """
-    response = get_client().models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
+    client = get_client()
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        response_format={"type": "json_object"}
     )
-    raw = response.text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+    raw = response.choices[0].message.content.strip()
     try:
-        data = json.loads(raw.strip())
+        data = json.loads(raw)
         return JobRecord(**data)
     except Exception as e:
         print(f"Extraction parsing error: {e}")
