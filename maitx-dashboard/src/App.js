@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "https://web-production-c1e12.up.railway.app";
 const USER_ID = "918878525555";
 
 function App() {
