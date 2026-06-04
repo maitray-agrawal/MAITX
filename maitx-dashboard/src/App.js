@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import AdminPanel from "./AdminPanel";
 
 const API_BASE = "https://web-production-c1e12.up.railway.app";
 
@@ -319,7 +320,13 @@ export default function App() {
     return mf && ms;
   });
 
-  if (!userId) return <LoginScreen onLogin={setUserId} />;
+  if (window.location.pathname === "/admin") {
+  return <AdminPanel />;
+}
+
+if (!userId) {
+  return <LoginScreen onLogin={setUserId} />;
+}
 
   const pending = jobs.filter(j => !j.applied).length;
   const applied = jobs.filter(j => j.applied).length;
