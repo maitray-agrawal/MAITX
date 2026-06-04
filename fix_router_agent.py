@@ -5,7 +5,7 @@ from app.extractor_agent import extract_job_details
 from app.database import save_job, get_recent_job_by_keyword, update_job, jobs_collection
 from app.whatsapp import send_message
 
-DASHBOARD_URL = "https://maitx.vercel.app"  # replace with your actual Vercel URL
+DASHBOARD_URL = "https://maitx.vercel.app"  
 
 
 def get_client():
