@@ -11,9 +11,16 @@ def parse_deadline(deadline_str: str):
     if not deadline_str:
         return None
 
-    cleaned = re.sub(r",?\s*\d{1,2}(:\d{2})?\s*(AM|PM|am|pm)", "", deadline_str)
-    cleaned = re.sub(r"(\d+)(st|nd|rd|th)", r"\1", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"(\d+)\.(\d+)\.(\d+)", r"\1 \2 \3", cleaned)
+    # Remove time part e.g. "till 4:00 PM", "till 5:00 pm"
+    cleaned = re.sub(r"till\s+\d{1,2}(:\d{2})?\s*(AM|PM|am|pm)", "", deadline_str, flags=re.IGNORECASE)
+    cleaned = re.sub(r",?\s*\d{1,2}(:\d{2})?\s*(AM|PM|am|pm)", "", cleaned, flags=re.IGNORECASE)
+
+    # Remove ordinal suffixes
+    cleaned = re.sub(r"(\d+)(st|nd|rd|th)", r"", cleaned, flags=re.IGNORECASE)
+
+    # Replace dots with spaces e.g. 31.5.2026
+    cleaned = re.sub(r"(\d+)\.(\d+)\.(\d+)", r"  ", cleaned)
+
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
     formats = [
