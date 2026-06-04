@@ -1,4 +1,4 @@
-import fitz
+content = """import fitz
 import requests
 import os
 import tempfile
@@ -18,7 +18,7 @@ def extract_text_from_docx(file_path: str) -> str:
     doc = Document(file_path)
     text = ""
     for para in doc.paragraphs:
-        text += para.text + "\n"
+        text += para.text + "\\n"
     return text.strip()
 
 
@@ -61,3 +61,8 @@ def download_and_extract_pdf(media_url: str, mime_type: str = "application/pdf")
         return None
     finally:
         os.unlink(tmp_path)
+"""
+
+with open("app/pdf_handler.py", "w", encoding="utf-8") as f:
+    f.write(content)
+print("pdf_handler.py updated with DOCX support")
