@@ -4,25 +4,13 @@ import axios from "axios";
 const API_BASE = "https://web-production-c1e12.up.railway.app";
 
 const G = {
-  bg: "#080810",
-  b1: "#0f0f1a",
-  b2: "#14141f",
-  b3: "#1a1a28",
-  border: "#25253a",
-  borderHi: "#35355a",
-  accent: "#7c6af7",
-  accentSoft: "#7c6af712",
-  accentBorder: "#7c6af740",
-  green: "#34d399",
-  greenSoft: "#34d39912",
-  greenBorder: "#34d39930",
-  amber: "#fbbf24",
-  amberSoft: "#fbbf2412",
-  red: "#f87171",
-  redSoft: "#f8717112",
-  t1: "#eeeef8",
-  t2: "#8888aa",
-  t3: "#44445a",
+  bg: "#080810", b1: "#0f0f1a", b2: "#14141f", b3: "#1a1a28",
+  border: "#25253a", borderHi: "#35355a",
+  accent: "#7c6af7", accentSoft: "#7c6af712", accentBorder: "#7c6af740",
+  green: "#34d399", greenSoft: "#34d39912", greenBorder: "#34d39930",
+  amber: "#fbbf24", amberSoft: "#fbbf2412",
+  red: "#f87171", redSoft: "#f8717112",
+  t1: "#eeeef8", t2: "#8888aa", t3: "#44445a",
 };
 
 const injectStyles = () => {
@@ -48,10 +36,21 @@ const injectStyles = () => {
     .filter-btn{padding:7px 16px;border-radius:9px;border:1px solid ${G.border};background:transparent;color:${G.t2};cursor:pointer;font-size:0.8rem;font-family:'DM Sans',sans-serif;transition:all 0.15s}
     .filter-btn.active{border-color:${G.accent};background:${G.accentSoft};color:${G.accent};font-weight:500}
     .shimmer{background:linear-gradient(90deg,${G.b3} 25%,${G.border} 50%,${G.b3} 75%);background-size:400% 100%;animation:shimmer 1.8s infinite}
+    @keyframes otpPulse{0%,100%{border-color:${G.accentBorder}}50%{border-color:${G.accent}}}
+    .otp-sent{animation:otpPulse 2s ease infinite}
   `;
   document.head.appendChild(s);
 };
 
+// ── auth helpers ──────────────────────────────────────────────
+const getToken = () => localStorage.getItem("maitx_token");
+const getStoredUser = () => localStorage.getItem("maitx_user");
+
+const authHeaders = () => ({
+  headers: { Authorization: `Bearer ${getToken()}` }
+});
+
+// ── sub-components (unchanged) ────────────────────────────────
 function BentoStat({ label, value, color, soft, sub }) {
   return (
     <div style={{ background: G.b2, borderRadius: 16, padding: "20px", border: `1px solid ${G.border}`, position: "relative", overflow: "hidden" }}>
@@ -77,10 +76,7 @@ function ApplyRateBox({ jobs }) {
       </div>
       <div style={{ display: "flex", gap: 4 }}>
         {Array.from({ length: bars }).map((_, i) => (
-          <div key={i} style={{
-            flex: 1, height: 6, borderRadius: 3,
-            background: i < Math.round((pct / 100) * bars) ? G.green : G.border
-          }} />
+          <div key={i} style={{ flex: 1, height: 6, borderRadius: 3, background: i < Math.round((pct / 100) * bars) ? G.green : G.border }} />
         ))}
       </div>
     </div>
@@ -135,26 +131,19 @@ function JobCard({ job, onMarkApplied, onDelete, index }) {
           {job.applied ? "✓ Applied" : "Pending"}
         </span>
       </div>
-
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
         {[["📅", job.deadline], ["💰", job.stipend], ["🏢", job.work_format], ["📍", job.location]].filter(([, v]) => v).map(([icon, val]) => (
           <span key={val} style={{ fontSize: "0.73rem", color: G.t2, background: G.b1, border: `1px solid ${G.border}`, borderRadius: 6, padding: "2px 8px" }}>{icon} {val}</span>
         ))}
       </div>
-
       {job.eligibility && <p style={{ fontSize: "0.75rem", color: G.t3, marginBottom: 4 }}>🎓 {job.eligibility}</p>}
       {job.extra_notes && <p style={{ fontSize: "0.73rem", color: G.t3, fontStyle: "italic", marginBottom: 8 }}>📝 {job.extra_notes}</p>}
-
       <div style={{ display: "flex", gap: 7, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
         {job.apply_link && (
-          <a href={job.apply_link} target="_blank" rel="noreferrer" style={{ background: G.accent, color: "#fff", padding: "6px 14px", borderRadius: 8, textDecoration: "none", fontSize: "0.78rem", fontWeight: 600 }}>
-            Apply →
-          </a>
+          <a href={job.apply_link} target="_blank" rel="noreferrer" style={{ background: G.accent, color: "#fff", padding: "6px 14px", borderRadius: 8, textDecoration: "none", fontSize: "0.78rem", fontWeight: 600 }}>Apply →</a>
         )}
         {!job.applied && (
-          <button className="btn" onClick={() => onMarkApplied(job._id)} style={{ background: G.greenSoft, color: G.green, padding: "6px 12px", borderRadius: 8, border: `1px solid ${G.greenBorder}`, fontSize: "0.78rem" }}>
-            Mark applied
-          </button>
+          <button className="btn" onClick={() => onMarkApplied(job._id)} style={{ background: G.greenSoft, color: G.green, padding: "6px 12px", borderRadius: 8, border: `1px solid ${G.greenBorder}`, fontSize: "0.78rem" }}>Mark applied</button>
         )}
         <button className="btn" onClick={() => onDelete(job._id)} style={{ background: "transparent", color: G.t3, padding: "6px 10px", borderRadius: 8, border: `1px solid ${G.border}`, fontSize: "0.78rem", marginLeft: "auto" }}>✕</button>
       </div>
@@ -162,47 +151,165 @@ function JobCard({ job, onMarkApplied, onDelete, index }) {
   );
 }
 
+// ── Login screen with OTP flow ────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState("phone"); // "phone" | "otp"
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
+  const requestOtp = async () => {
+    const val = phone.trim();
+    if (!val || val.length < 10) { setError("Enter a valid number with country code"); return; }
+    setLoading(true); setError("");
+    try {
+      await axios.post(`${API_BASE}/auth/request-otp`, { phone: val });
+      setStep("otp");
+      setCountdown(60);
+    } catch (e) {
+      setError(e.response?.data?.detail || "Failed to send OTP. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (!otp.trim() || otp.length !== 6) { setError("Enter the 6-digit OTP"); return; }
+    setLoading(true); setError("");
+    try {
+      const res = await axios.post(`${API_BASE}/auth/verify-otp`, { phone: phone.trim(), otp: otp.trim() });
+      localStorage.setItem("maitx_token", res.data.token);
+      localStorage.setItem("maitx_user", res.data.user_id);
+      onLogin(res.data.user_id);
+    } catch (e) {
+      setError(e.response?.data?.detail || "Invalid OTP. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle = {
+    background: G.b1, border: `1px solid ${G.border}`, borderRadius: 10,
+    padding: "12px 14px", color: G.t1, fontSize: "0.95rem", width: "100%",
+    marginBottom: 10, fontFamily: "'DM Sans',sans-serif",
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: G.bg }}>
+      <div style={{ width: "100%", maxWidth: 400, animation: "fadeUp 0.4s ease" }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <p style={{ fontSize: "0.68rem", letterSpacing: "0.2em", color: G.accent, textTransform: "uppercase", marginBottom: 12 }}>TnP Internship Tracker</p>
+          <h1 style={{ fontSize: "3.5rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1, letterSpacing: "-0.02em" }}>MAITX</h1>
+          <p style={{ color: G.t2, marginTop: 10, fontSize: "0.88rem" }}>AI-powered job tracking via WhatsApp</p>
+        </div>
+
+        <div style={{ background: G.b2, borderRadius: 20, padding: 28, border: `1px solid ${G.border}` }}>
+          {step === "phone" ? (
+            <>
+              <p style={{ color: G.t2, fontSize: "0.84rem", marginBottom: 16, textAlign: "center" }}>Enter your WhatsApp number</p>
+              <input
+                type="tel" placeholder="91XXXXXXXXXX" value={phone}
+                onChange={e => setPhone(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") requestOtp(); }}
+                style={inputStyle}
+              />
+              <button className="btn" onClick={requestOtp} disabled={loading}
+                style={{ background: G.accent, color: "#fff", padding: "12px", borderRadius: 10, fontSize: "0.92rem", fontWeight: 600, width: "100%", fontFamily: "'DM Sans',sans-serif", opacity: loading ? 0.7 : 1 }}>
+                {loading ? "Sending OTP…" : "Send OTP via WhatsApp"}
+              </button>
+              <p style={{ color: G.t3, fontSize: "0.7rem", textAlign: "center", marginTop: 14 }}>Include country code · 91XXXXXXXXXX for India</p>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <button className="btn" onClick={() => { setStep("phone"); setError(""); setOtp(""); }}
+                  style={{ background: "transparent", color: G.t3, padding: "4px 8px", borderRadius: 6, border: `1px solid ${G.border}`, fontSize: "0.78rem" }}>←</button>
+                <p style={{ color: G.t2, fontSize: "0.84rem" }}>OTP sent to <span style={{ color: G.t1 }}>+{phone}</span></p>
+              </div>
+              <div style={{ background: G.accentSoft, border: `1px solid ${G.accentBorder}`, borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: "0.8rem", color: G.accent }}>
+                📱 Check your WhatsApp for the 6-digit code
+              </div>
+              <input
+                type="number" placeholder="Enter 6-digit OTP" value={otp}
+                onChange={e => setOtp(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") verifyOtp(); }}
+                className={otp.length === 6 ? "otp-sent" : ""}
+                style={{ ...inputStyle, letterSpacing: "0.2em", fontSize: "1.2rem", textAlign: "center" }}
+              />
+              <button className="btn" onClick={verifyOtp} disabled={loading}
+                style={{ background: G.accent, color: "#fff", padding: "12px", borderRadius: 10, fontSize: "0.92rem", fontWeight: 600, width: "100%", fontFamily: "'DM Sans',sans-serif", opacity: loading ? 0.7 : 1 }}>
+                {loading ? "Verifying…" : "Verify & Login"}
+              </button>
+              <div style={{ textAlign: "center", marginTop: 14 }}>
+                {countdown > 0
+                  ? <p style={{ color: G.t3, fontSize: "0.75rem" }}>Resend in {countdown}s</p>
+                  : <button className="btn" onClick={requestOtp}
+                      style={{ background: "transparent", color: G.accent, fontSize: "0.78rem", textDecoration: "underline", padding: 0 }}>
+                      Resend OTP
+                    </button>
+                }
+              </div>
+            </>
+          )}
+
+          {error && (
+            <div style={{ background: G.redSoft, border: `1px solid ${G.red}40`, borderRadius: 8, padding: "9px 12px", marginTop: 12, fontSize: "0.8rem", color: G.red }}>
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main app ──────────────────────────────────────────────────
 export default function App() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [userId, setUserId] = useState(localStorage.getItem("maitx_user") || "");
-  const [inputNumber, setInputNumber] = useState("");
+  const [userId, setUserId] = useState(getStoredUser() || "");
 
   useEffect(() => { injectStyles(); }, []);
 
-  const fetchJobs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`${API_BASE}/api/jobs/${userId}`);
-      setJobs(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => { if (userId) fetchJobs(); }, [userId, fetchJobs]);
-
-  const handleLogin = () => {
-    const val = inputNumber.trim();
-    if (val) { localStorage.setItem("maitx_user", val); setUserId(val); }
-  };
-
   const handleLogout = () => {
+    localStorage.removeItem("maitx_token");
     localStorage.removeItem("maitx_user");
     setUserId(""); setJobs([]); setLoading(true);
   };
 
+  const fetchJobs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/api/jobs/${userId}`, authHeaders());
+      setJobs(res.data);
+    } catch (err) {
+      // Token expired or invalid — force logout
+      if (err.response?.status === 401) handleLogout();
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (userId) fetchJobs(); }, [userId, fetchJobs]);
+
   const markApplied = async (id) => {
-    await axios.patch(`${API_BASE}/api/jobs/${id}/applied`);
+    await axios.patch(`${API_BASE}/api/jobs/${id}/applied`, {}, authHeaders());
     setJobs(jobs.map(j => j._id === id ? { ...j, applied: true } : j));
   };
 
   const deleteJob = async (id) => {
-    await axios.delete(`${API_BASE}/api/jobs/${id}`);
+    await axios.delete(`${API_BASE}/api/jobs/${id}`, authHeaders());
     setJobs(jobs.filter(j => j._id !== id));
   };
 
@@ -212,32 +319,7 @@ export default function App() {
     return mf && ms;
   });
 
-  if (!userId) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: G.bg }}>
-        <div style={{ width: "100%", maxWidth: 400, animation: "fadeUp 0.4s ease" }}>
-          <div style={{ textAlign: "center", marginBottom: 40 }}>
-            <p style={{ fontSize: "0.68rem", letterSpacing: "0.2em", color: G.accent, textTransform: "uppercase", marginBottom: 12 }}>TnP Internship Tracker</p>
-            <h1 style={{ fontSize: "3.5rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1, letterSpacing: "-0.02em" }}>MAITX</h1>
-            <p style={{ color: G.t2, marginTop: 10, fontSize: "0.88rem" }}>AI-powered job tracking via WhatsApp</p>
-          </div>
-          <div style={{ background: G.b2, borderRadius: 20, padding: 28, border: `1px solid ${G.border}` }}>
-            <p style={{ color: G.t2, fontSize: "0.84rem", marginBottom: 16, textAlign: "center" }}>Enter your WhatsApp number</p>
-            <input
-              type="tel" placeholder="91XXXXXXXXXX" value={inputNumber}
-              onChange={e => setInputNumber(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") handleLogin(); }}
-              style={{ background: G.b1, border: `1px solid ${G.border}`, borderRadius: 10, padding: "12px 14px", color: G.t1, fontSize: "0.95rem", width: "100%", marginBottom: 10, fontFamily: "'DM Sans',sans-serif" }}
-            />
-            <button className="btn" onClick={handleLogin} style={{ background: G.accent, color: "#fff", padding: "12px", borderRadius: 10, fontSize: "0.92rem", fontWeight: 600, width: "100%", fontFamily: "'DM Sans',sans-serif" }}>
-              View My Jobs
-            </button>
-            <p style={{ color: G.t3, fontSize: "0.7rem", textAlign: "center", marginTop: 14 }}>Include country code · 91XXXXXXXXXX for India</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!userId) return <LoginScreen onLogin={setUserId} />;
 
   const pending = jobs.filter(j => !j.applied).length;
   const applied = jobs.filter(j => j.applied).length;
@@ -245,7 +327,6 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: G.bg, padding: "24px 16px 48px", maxWidth: 820, margin: "0 auto" }}>
 
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
           <p style={{ fontSize: "0.65rem", letterSpacing: "0.18em", color: G.accent, textTransform: "uppercase", marginBottom: 4 }}>Dashboard</p>
@@ -257,20 +338,17 @@ export default function App() {
         </div>
       </div>
 
-      {/* Bento stats row */}
       <div className="bento-grid">
         <BentoStat label="Total saved" value={jobs.length} color={G.accent} soft={G.accentSoft} />
         <BentoStat label="Pending" value={pending} color={G.amber} soft={G.amberSoft} sub={pending > 0 ? "Don't miss deadlines" : "All caught up!"} />
         <BentoStat label="Applied" value={applied} color={G.green} soft={G.greenSoft} />
       </div>
 
-      {/* Bento second row */}
       <div className="bento-grid">
         <ApplyRateBox jobs={jobs} />
         <RecentActivity jobs={jobs} />
       </div>
 
-      {/* Search + filter */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
           type="text" placeholder="Search jobs..." value={search}
@@ -292,7 +370,6 @@ export default function App() {
         </p>
       )}
 
-      {/* Job list */}
       {loading
         ? [1, 2, 3].map(i => <SkeletonCard key={i} />)
         : filtered.length === 0
