@@ -1,15 +1,32 @@
-import fitz  # PyMuPDF
+content = """import fitz  # PyMuPDF for PDF
 import requests
 import os
 import tempfile
 
 
-def download_and_extract_pdf(media_url: str) -> str:
-    """Download PDF from Meta URL and extract text"""
+def extract_text_from_pdf(file_path: str) -> str:
+    doc = fitz.open(file_path)
+    text = ""
+    for page in doc:
+        text += page.get_text()
+    doc.close()
+    return text.strip()
+
+
+def extract_text_from_docx(file_path: str) -> str:
+    from docx import Document
+    doc = Document(file_path)
+    text = ""
+    for para in doc.paragraphs:
+        text += para.text + "\\n"
+    return text.strip()
+
+
+def download_and_extract_pdf(media_url: str, mime_type: str = "application/pdf") -> str:
     token = os.getenv("WHATSAPP_TOKEN")
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Step 1: Get the actual download URL from Meta
+    # Step 1: Get download URL from Meta
     media_response = requests.get(media_url, headers=headers)
     if media_response.status_code != 200:
         print(f"Failed to get media info: {media_response.status_code}")
@@ -20,27 +37,35 @@ def download_and_extract_pdf(media_url: str) -> str:
         print("No download URL in media response")
         return None
 
-    # Step 2: Download the PDF
-    pdf_response = requests.get(download_url, headers=headers)
-    if pdf_response.status_code != 200:
-        print(f"Failed to download PDF: {pdf_response.status_code}")
+    # Step 2: Download the file
+    file_response = requests.get(download_url, headers=headers)
+    if file_response.status_code != 200:
+        print(f"Failed to download file: {file_response.status_code}")
         return None
 
-    # Step 3: Save to temp file and extract text
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-        tmp.write(pdf_response.content)
+    # Step 3: Determine file type and extract text
+    is_docx = "word" in mime_type.lower() or "docx" in mime_type.lower()
+    suffix = ".docx" if is_docx else ".pdf"
+
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(file_response.content)
         tmp_path = tmp.name
 
     try:
-        doc = fitz.open(tmp_path)
-        text = ""
-        for page in doc:
-            text += page.get_text()
-        doc.close()
-        print(f"Extracted {len(text)} characters from PDF")
-        return text.strip()
+        if is_docx:
+            text = extract_text_from_docx(tmp_path)
+            print(f"Extracted {len(text)} characters from DOCX")
+        else:
+            text = extract_text_from_pdf(tmp_path)
+            print(f"Extracted {len(text)} characters from PDF")
+        return text
     except Exception as e:
-        print(f"PDF extraction error: {e}")
+        print(f"File extraction error: {e}")
         return None
     finally:
         os.unlink(tmp_path)
+"""
+
+with open("app/pdf_handler.py", "w", encoding="utf-8") as f:
+    f.write(content)
+print("pdf_handler.py updated with DOCX support")

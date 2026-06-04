@@ -10,7 +10,6 @@ router = APIRouter()
 
 @router.get("/webhook")
 async def verify_webhook(request: Request):
-    # Read raw query string to handle dot-notation params
     query = str(request.url.query)
     params = {}
     for part in query.split("&"):
@@ -62,11 +61,20 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
             mime_type = doc.get("mime_type", "")
             filename = doc.get("filename", "unknown")
             media_id = doc.get("id")
+
             print(f"Document received: {filename} ({mime_type})")
+
             if "pdf" in mime_type.lower():
                 background_tasks.add_task(
-                    process_pdf_message, media_id, sender, filename
+                    process_pdf_message, media_id, sender, filename, mime_type
                 )
+            elif "word" in mime_type.lower() or "docx" in mime_type.lower() or "document" in mime_type.lower():
+                background_tasks.add_task(
+                    process_pdf_message, media_id, sender, filename, mime_type
+                )
+            else:
+                print(f"Unsupported document type: {mime_type}, ignoring")
+
         else:
             print(f"Unsupported message type: {msg_type}, ignoring")
 
@@ -76,17 +84,20 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
     return {"status": "ok"}
 
 
-async def process_pdf_message(media_id: str, sender: str, filename: str):
-    print(f"Processing PDF: {filename} from {sender}")
+async def process_pdf_message(media_id: str, sender: str, filename: str, mime_type: str = "application/pdf"):
+    print(f"Processing document: {filename} ({mime_type}) from {sender}")
     media_url = f"https://graph.facebook.com/v18.0/{media_id}"
-    text = download_and_extract_pdf(media_url)
+    text = download_and_extract_pdf(media_url, mime_type)
     if not text:
         from app.whatsapp import send_message
-        await send_message(sender, "Sorry, could not read that PDF. Please send as text.")
+        await send_message(
+            sender,
+            "Sorry, could not read that file. Please send job details as text."
+        )
         return
     await classify_and_process(text, sender)
 """
 
 with open("app/webhook.py", "w", encoding="utf-8") as f:
     f.write(content)
-print("webhook.py updated")
+print("webhook.py updated with PDF and DOCX support")
