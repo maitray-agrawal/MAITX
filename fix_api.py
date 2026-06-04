@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+content = """from fastapi import APIRouter, Depends
 from app.database import jobs_collection
 from app.auth_routes import get_current_user
 from bson import ObjectId
@@ -45,3 +45,8 @@ async def mark_applied(job_id: str, current_user: str = Depends(get_current_user
 async def delete_job(job_id: str, current_user: str = Depends(get_current_user)):
     jobs_collection.delete_one({"_id": ObjectId(job_id)})
     return {"status": "deleted"}
+"""
+
+with open("app/api.py", "w", encoding="utf-8") as f:
+    f.write(content)
+print("api.py updated")

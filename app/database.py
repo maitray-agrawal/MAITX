@@ -52,3 +52,7 @@ async def update_job(job_id: ObjectId, updated: JobRecord):
 async def get_jobs_near_deadline():
     cursor = jobs_collection.find({"notified": False})
     return list(cursor)
+
+# OTP store — auto-expires after 10 minutes
+otp_collection = db["otp_store"]
+otp_collection.create_index("created_at", expireAfterSeconds=600)
