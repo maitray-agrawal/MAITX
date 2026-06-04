@@ -1,4 +1,4 @@
-from groq import Groq
+content = """from groq import Groq
 import os
 import json
 from app.extractor_agent import extract_job_details
@@ -18,22 +18,22 @@ def is_new_user(sender: str) -> bool:
 
 
 def classify_message(text: str) -> dict:
-    prompt = f"""
+    prompt = f\"\"\"
 Classify the following message into exactly one of these intents:
 - NEW_JD : a new internship or job description with details like company, role, deadline
 - UPDATE  : an update to a previously mentioned opportunity
 - JUNK   : irrelevant message, chatter, forwards, greetings
 
 Return ONLY a JSON object like:
-{{"intent": "NEW_JD", "keyword": null}}
+{{\"intent\": \"NEW_JD\", \"keyword\": null}}
 or
-{{"intent": "UPDATE", "keyword": "Amazon"}}
+{{\"intent\": \"UPDATE\", \"keyword\": \"Amazon\"}}
 or
-{{"intent": "JUNK", "keyword": null}}
+{{\"intent\": \"JUNK\", \"keyword\": null}}
 
 Message:
 {text}
-"""
+\"\"\"
     client = get_client()
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -73,12 +73,12 @@ async def classify_and_process(text: str, sender: str):
         if new_user:
             await send_message(
                 sender,
-                "👋 Welcome to *MAITX*!\n\n"
-                "I'm your AI-powered internship tracker.\n\n"
-                "📌 *How to use:*\n"
-                "Forward any TnP internship message to me and I'll automatically extract and save it for you.\n\n"
-                f"📊 *Your Dashboard:*\n{DASHBOARD_URL}\n"
-                f"Login with your number: *{sender}*\n\n"
+                "👋 Welcome to *MAITX*!\\n\\n"
+                "I'm your AI-powered internship tracker.\\n\\n"
+                "📌 *How to use:*\\n"
+                "Forward any TnP internship message to me and I'll automatically extract and save it for you.\\n\\n"
+                f"📊 *Your Dashboard:*\\n{DASHBOARD_URL}\\n"
+                f"Login with your number: *{sender}*\\n\\n"
                 "Start by forwarding a TnP message! 🚀"
             )
         else:
@@ -93,16 +93,16 @@ async def classify_and_process(text: str, sender: str):
                 print(f"Saved: {job.company_name} - {job.role}")
 
                 # Build confirmation message
-                msg = f"✅ Saved *{job.company_name}* - *{job.role}*\n"
-                if job.deadline: msg += f"📅 Deadline: {job.deadline}\n"
-                if job.stipend: msg += f"💰 Stipend: {job.stipend}\n"
-                if job.work_format: msg += f"🏢 Format: {job.work_format}\n"
-                if job.apply_link: msg += f"🔗 Apply: {job.apply_link}\n"
-                msg += f"\n📊 View dashboard: {DASHBOARD_URL}"
+                msg = f"✅ Saved *{job.company_name}* - *{job.role}*\\n"
+                if job.deadline: msg += f"📅 Deadline: {job.deadline}\\n"
+                if job.stipend: msg += f"💰 Stipend: {job.stipend}\\n"
+                if job.work_format: msg += f"🏢 Format: {job.work_format}\\n"
+                if job.apply_link: msg += f"🔗 Apply: {job.apply_link}\\n"
+                msg += f"\\n📊 View dashboard: {DASHBOARD_URL}"
 
                 # Add welcome note for first job saved
                 if new_user:
-                    msg += f"\n\n👋 Welcome to MAITX! Login with *{sender}*"
+                    msg += f"\\n\\n👋 Welcome to MAITX! Login with *{sender}*"
 
                 await send_message(sender, msg)
             else:
@@ -130,3 +130,8 @@ async def classify_and_process(text: str, sender: str):
             else:
                 print(f"No existing record found for: {keyword}")
                 await send_message(sender, f"Could not find a saved record for *{keyword}*.")
+"""
+
+with open("app/router_agent.py", "w", encoding="utf-8") as f:
+    f.write(content)
+print("router_agent.py updated with multi-user welcome message")
