@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import AdminPanel from "./AdminPanel";
 
@@ -39,19 +40,256 @@ const injectStyles = () => {
     .shimmer{background:linear-gradient(90deg,${G.b3} 25%,${G.border} 50%,${G.b3} 75%);background-size:400% 100%;animation:shimmer 1.8s infinite}
     @keyframes otpPulse{0%,100%{border-color:${G.accentBorder}}50%{border-color:${G.accent}}}
     .otp-sent{animation:otpPulse 2s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
   `;
   document.head.appendChild(s);
 };
 
-// ── auth helpers ──────────────────────────────────────────────
 const getToken = () => localStorage.getItem("maitx_token");
 const getStoredUser = () => localStorage.getItem("maitx_user");
+const authHeaders = () => ({ headers: { Authorization: `Bearer ${getToken()}` } });
 
-const authHeaders = () => ({
-  headers: { Authorization: `Bearer ${getToken()}` }
-});
+function ScoreRing({ score }) {
+  const color = score >= 70 ? G.green : score >= 50 ? G.amber : G.red;
+  const r = 36; const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  return (
+    <div style={{ position: "relative", width: 100, height: 100, flexShrink: 0 }}>
+      <svg width="100" height="100" style={{ transform: "rotate(-90deg)" }}>
+        <circle cx="50" cy="50" r={r} fill="none" stroke={G.border} strokeWidth="8" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke={color} strokeWidth="8"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          style={{ transition: "stroke-dasharray 1s ease" }} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: "1.4rem", fontWeight: 800, color, fontFamily: "'Syne',sans-serif" }}>{score}</span>
+        <span style={{ fontSize: "0.6rem", color: G.t3 }}>/ 100</span>
+      </div>
+    </div>
+  );
+}
 
-// ── sub-components (unchanged) ────────────────────────────────
+function ResumeResults({ result, onBack }) {
+  const [tab, setTab] = useState("overview");
+  const tabs = ["overview", "keywords", "improvements", "bullets", "ats"];
+
+  return (
+    <div style={{ minHeight: "100vh", background: G.bg, padding: "24px 16px 48px", maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
+        <button onClick={onBack} className="btn"
+          style={{ background: G.b2, color: G.t2, padding: "7px 14px", borderRadius: 9, border: `1px solid ${G.border}`, fontSize: "0.8rem" }}>← Back</button>
+        <div>
+          <p style={{ fontSize: "0.65rem", letterSpacing: "0.18em", color: G.accent, textTransform: "uppercase" }}>Resume Analysis</p>
+          <h1 style={{ fontSize: "1.6rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1 }}>Tailor Report</h1>
+        </div>
+      </div>
+
+      {/* Score header */}
+      <div style={{ background: G.b2, borderRadius: 20, padding: 24, border: `1px solid ${G.border}`, marginBottom: 16, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
+        <ScoreRing score={result.match_score} />
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <p style={{ fontSize: "0.68rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Overall Match</p>
+          <p style={{ fontSize: "0.88rem", color: G.t2, lineHeight: 1.5, marginBottom: 16 }}>{result.summary}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>
+            {Object.entries(result.score_breakdown || {}).map(([k, v]) => (
+              <div key={k} style={{ background: G.b1, borderRadius: 10, padding: "10px 12px", border: `1px solid ${G.border}` }}>
+                <p style={{ fontSize: "0.65rem", color: G.t3, textTransform: "uppercase", marginBottom: 4 }}>{k.replace("_", " ")}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ flex: 1, height: 4, borderRadius: 2, background: G.border }}>
+                    <div style={{ width: `${v}%`, height: "100%", borderRadius: 2, background: v >= 70 ? G.green : v >= 50 ? G.amber : G.red }} />
+                  </div>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: G.t1 }}>{v}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {tabs.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: "7px 16px", borderRadius: 9, border: `1px solid ${tab === t ? G.accent : G.border}`, background: tab === t ? G.accentSoft : "transparent", color: tab === t ? G.accent : G.t2, cursor: "pointer", fontSize: "0.8rem", fontFamily: "inherit", fontWeight: tab === t ? 600 : 400 }}>
+            {t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview */}
+      {tab === "overview" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+            <p style={{ fontSize: "0.68rem", color: G.green, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>✓ Strong Sections</p>
+            {(result.strong_sections || []).map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: G.green, flexShrink: 0 }} />
+                <span style={{ fontSize: "0.85rem", color: G.t1 }}>{s}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+            <p style={{ fontSize: "0.68rem", color: G.red, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>✗ Needs Work</p>
+            {(result.weak_sections || []).map((s, i) => (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <p style={{ fontSize: "0.85rem", color: G.t1, fontWeight: 500 }}>{s.section}</p>
+                <p style={{ fontSize: "0.75rem", color: G.red, marginTop: 2 }}>{s.issue}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Keywords */}
+      {tab === "keywords" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+            <p style={{ fontSize: "0.68rem", color: G.green, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>✓ Matched Keywords</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {(result.matched_keywords || []).map((k, i) => (
+                <span key={i} style={{ fontSize: "0.78rem", color: G.green, background: G.greenSoft, border: `1px solid ${G.greenBorder}`, borderRadius: 20, padding: "3px 10px" }}>{k}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+            <p style={{ fontSize: "0.68rem", color: G.red, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>✗ Missing Keywords</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {(result.missing_keywords || []).map((k, i) => (
+                <span key={i} style={{ fontSize: "0.78rem", color: G.red, background: G.redSoft, border: `1px solid ${G.red}40`, borderRadius: 20, padding: "3px 10px" }}>{k}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Improvements */}
+      {tab === "improvements" && (
+        <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+          <p style={{ fontSize: "0.68rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16 }}>Section Fixes</p>
+          {(result.weak_sections || []).map((s, i) => (
+            <div key={i} style={{ marginBottom: 16, padding: 16, background: G.b1, borderRadius: 12, border: `1px solid ${G.border}` }}>
+              <p style={{ fontSize: "0.88rem", fontWeight: 600, color: G.t1, marginBottom: 6 }}>{s.section}</p>
+              <p style={{ fontSize: "0.78rem", color: G.red, marginBottom: 8 }}>Issue: {s.issue}</p>
+              <p style={{ fontSize: "0.78rem", color: G.green }}>Fix: {s.fix}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Bullets */}
+      {tab === "bullets" && (
+        <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+          <p style={{ fontSize: "0.68rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16 }}>Rewritten Bullet Points</p>
+          {(result.rewritten_bullets || []).map((b, i) => (
+            <div key={i} style={{ marginBottom: 16, padding: 16, background: G.b1, borderRadius: 12, border: `1px solid ${G.border}` }}>
+              <p style={{ fontSize: "0.72rem", color: G.t3, marginBottom: 6 }}>ORIGINAL</p>
+              <p style={{ fontSize: "0.82rem", color: G.t2, marginBottom: 10, fontStyle: "italic" }}>{b.original}</p>
+              <p style={{ fontSize: "0.72rem", color: G.green, marginBottom: 6 }}>IMPROVED</p>
+              <p style={{ fontSize: "0.85rem", color: G.t1 }}>{b.improved}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ATS Tips */}
+      {tab === "ats" && (
+        <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+          <p style={{ fontSize: "0.68rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16 }}>ATS Optimization Tips</p>
+          {(result.ats_tips || []).map((tip, i) => (
+            <div key={i} style={{ display: "flex", gap: 12, marginBottom: 14, padding: 14, background: G.b1, borderRadius: 12, border: `1px solid ${G.border}` }}>
+              <span style={{ fontSize: "1rem", flexShrink: 0 }}>💡</span>
+              <p style={{ fontSize: "0.85rem", color: G.t1, lineHeight: 1.5 }}>{tip}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResumeTailor({ token }) {
+  const [resumeFile, setResumeFile] = useState(null);
+  const [jd, setJd] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
+  const fileRef = useRef();
+
+  if (result) return <ResumeResults result={result} onBack={() => setResult(null)} />;
+
+  const analyze = async () => {
+    if (!resumeFile) { setError("Upload your resume PDF"); return; }
+    if (jd.trim().length < 50) { setError("Paste a job description (min 50 chars)"); return; }
+    setLoading(true); setError("");
+    try {
+      const form = new FormData();
+      form.append("resume", resumeFile);
+      form.append("jd", jd);
+      const r = await axios.post(`${API_BASE}/api/resume/analyze`, form, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
+      });
+      setResult(r.data);
+    } catch (e) {
+      setError(e.response?.data?.detail || "Analysis failed. Try again.");
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: G.bg, padding: "24px 16px 48px", maxWidth: 820, margin: "0 auto" }}>
+      <div style={{ marginBottom: 28 }}>
+        <p style={{ fontSize: "0.65rem", letterSpacing: "0.18em", color: G.accent, textTransform: "uppercase", marginBottom: 4 }}>AI-Powered</p>
+        <h1 style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1 }}>Resume Tailor</h1>
+        <p style={{ color: G.t2, fontSize: "0.85rem", marginTop: 6 }}>Upload your resume + paste a JD to get a match score, missing keywords, and rewritten bullets</p>
+      </div>
+
+      {/* Upload */}
+      <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}`, marginBottom: 12 }}>
+        <p style={{ fontSize: "0.72rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Resume PDF</p>
+        <div onClick={() => fileRef.current.click()}
+          style={{ border: `2px dashed ${resumeFile ? G.accent : G.border}`, borderRadius: 12, padding: "28px 20px", textAlign: "center", cursor: "pointer", background: resumeFile ? G.accentSoft : "transparent", transition: "all 0.2s" }}>
+          <p style={{ fontSize: "1.5rem", marginBottom: 8 }}>{resumeFile ? "📄" : "⬆️"}</p>
+          <p style={{ fontSize: "0.88rem", color: resumeFile ? G.accent : G.t2 }}>
+            {resumeFile ? resumeFile.name : "Click to upload PDF resume"}
+          </p>
+          {!resumeFile && <p style={{ fontSize: "0.72rem", color: G.t3, marginTop: 4 }}>Max 5MB</p>}
+        </div>
+        <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
+          onChange={e => setResumeFile(e.target.files[0] || null)} />
+        {resumeFile && (
+          <button onClick={() => setResumeFile(null)} className="btn"
+            style={{ marginTop: 8, background: "transparent", color: G.t3, fontSize: "0.75rem", padding: "4px 8px", border: `1px solid ${G.border}`, borderRadius: 6 }}>
+            Remove
+          </button>
+        )}
+      </div>
+
+      {/* JD */}
+      <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}`, marginBottom: 16 }}>
+        <p style={{ fontSize: "0.72rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Job Description <span style={{ color: G.t3 }}>({jd.length} chars)</span></p>
+        <textarea value={jd} onChange={e => setJd(e.target.value)}
+          placeholder="Paste the full job description here..." rows={8}
+          style={{ width: "100%", background: G.b1, border: `1px solid ${G.border}`, borderRadius: 10, padding: "12px 14px", color: G.t1, fontSize: "0.88rem", fontFamily: "inherit", resize: "vertical" }} />
+      </div>
+
+      {error && (
+        <div style={{ background: G.redSoft, border: `1px solid ${G.red}40`, borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: "0.82rem", color: G.red }}>
+          {error}
+        </div>
+      )}
+
+      <button onClick={analyze} disabled={loading} className="btn"
+        style={{ width: "100%", background: loading ? G.b3 : G.accent, color: "#fff", padding: "14px", borderRadius: 12, fontSize: "1rem", fontWeight: 700, fontFamily: "'DM Sans',sans-serif", opacity: loading ? 0.8 : 1 }}>
+        {loading ? (
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            <span style={{ width: 16, height: 16, border: `2px solid #fff4`, borderTop: "2px solid #fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+            Analyzing with AI...
+          </span>
+        ) : "Analyze Resume →"}
+      </button>
+    </div>
+  );
+}
+
 function BentoStat({ label, value, color, soft, sub }) {
   return (
     <div style={{ background: G.b2, borderRadius: 16, padding: "20px", border: `1px solid ${G.border}`, position: "relative", overflow: "hidden" }}>
@@ -133,11 +371,8 @@ function JobCard({ job, onMarkApplied, onDelete, index }) {
         </span>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-        {[["📅", job.deadline], ["💰", job.stipend], ["🏢", job.work_format], ["📍", job.location]].filter(([, v]) => v).map(([icon, val]) => {
-          const isDeadline = icon === "📅";
-          const isUrgent = isDeadline && val && (() => { try { const d = new Date(val); const days = Math.ceil((d - new Date()) / 86400000); return days >= 0 && days <= 3; } catch { return false; } })();
-          const isSoon = isDeadline && val && (() => { try { const d = new Date(val); const days = Math.ceil((d - new Date()) / 86400000); return days > 3 && days <= 7; } catch { return false; } })();
-          return (<span key={val} style={{ fontSize: "0.73rem", color: isUrgent ? G.red : isSoon ? G.amber : G.t2, background: isUrgent ? G.redSoft : isSoon ? G.amberSoft : G.b1, border: `1px solid ${isUrgent ? G.red : isSoon ? G.amber : G.border}`, borderRadius: 6, padding: "2px 8px", fontWeight: isUrgent ? 600 : 400 }}>{icon} {val}{isUrgent ? " ⚠️" : isSoon ? " ⏰" : ""}</span>
+        {[["📅", job.deadline], ["💰", job.stipend], ["🏢", job.work_format], ["📍", job.location]].filter(([, v]) => v).map(([icon, val]) => (
+          <span key={val} style={{ fontSize: "0.73rem", color: G.t2, background: G.b1, border: `1px solid ${G.border}`, borderRadius: 6, padding: "2px 8px" }}>{icon} {val}</span>
         ))}
       </div>
       {job.eligibility && <p style={{ fontSize: "0.75rem", color: G.t3, marginBottom: 4 }}>🎓 {job.eligibility}</p>}
@@ -155,11 +390,10 @@ function JobCard({ job, onMarkApplied, onDelete, index }) {
   );
 }
 
-// ── Login screen with OTP flow ────────────────────────────────
 function LoginScreen({ onLogin }) {
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [step, setStep] = useState("phone"); // "phone" | "otp"
+  const [step, setStep] = useState("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(0);
@@ -171,7 +405,7 @@ function LoginScreen({ onLogin }) {
   }, [countdown]);
 
   const requestOtp = async () => {
-    const val = phone.trim();
+    const val = email.trim();
     if (!val || !val.includes("@")) { setError("Enter a valid email address"); return; }
     setLoading(true); setError("");
     try {
@@ -180,25 +414,20 @@ function LoginScreen({ onLogin }) {
       setCountdown(60);
     } catch (e) {
       setError(e.response?.data?.detail || "Failed to send OTP. Try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const verifyOtp = async () => {
     if (!otp.trim() || otp.length !== 6) { setError("Enter the 6-digit OTP"); return; }
     setLoading(true); setError("");
     try {
-      const res = await axios.post(`${API_BASE}/auth/verify-otp`, { phone: phone.trim(), otp: otp.trim() });
+      const res = await axios.post(`${API_BASE}/auth/verify-otp`, { phone: email.trim(), otp: otp.trim() });
       localStorage.setItem("maitx_token", res.data.token);
       localStorage.setItem("maitx_user", res.data.user_id);
       onLogin(res.data.user_id);
     } catch (e) {
-      const msg = e.response?.data?.detail || "Invalid OTP. Try again.";
-      setError(msg.includes("expired") ? "OTP expired. Please request a new one." : msg);
-    } finally {
-      setLoading(false);
-    }
+      setError(e.response?.data?.detail || "Invalid OTP. Try again.");
+    } finally { setLoading(false); }
   };
 
   const inputStyle = {
@@ -215,40 +444,31 @@ function LoginScreen({ onLogin }) {
           <h1 style={{ fontSize: "3.5rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1, letterSpacing: "-0.02em" }}>MAITX</h1>
           <p style={{ color: G.t2, marginTop: 10, fontSize: "0.88rem" }}>AI-powered job tracking via WhatsApp</p>
         </div>
-
         <div style={{ background: G.b2, borderRadius: 20, padding: 28, border: `1px solid ${G.border}` }}>
-          {step === "phone" ? (
+          {step === "email" ? (
             <>
-              <p style={{ color: G.t2, fontSize: "0.84rem", marginBottom: 16, textAlign: "center" }}>Enter your WhatsApp number</p>
-              <input
-                type="email" placeholder="you@gmail.com" value={phone}
-                onChange={e => setPhone(e.target.value)}
+              <p style={{ color: G.t2, fontSize: "0.84rem", marginBottom: 16, textAlign: "center" }}>Enter your college email</p>
+              <input type="email" placeholder="you@college.edu" value={email}
+                onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") requestOtp(); }}
-                style={inputStyle}
-              />
+                style={inputStyle} />
               <button className="btn" onClick={requestOtp} disabled={loading}
                 style={{ background: G.accent, color: "#fff", padding: "12px", borderRadius: 10, fontSize: "0.92rem", fontWeight: 600, width: "100%", fontFamily: "'DM Sans',sans-serif", opacity: loading ? 0.7 : 1 }}>
-                {loading ? "Sending OTP…" : "Send OTP via Email"}
+                {loading ? "Sending OTP…" : "Send OTP"}
               </button>
-              <p style={{ color: G.t3, fontSize: "0.7rem", textAlign: "center", marginTop: 14 }}>Enter email to receive OTP · 91XXXXXXXXXX for India</p>
             </>
           ) : (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <button className="btn" onClick={() => { setStep("phone"); setError(""); setOtp(""); }}
+                <button className="btn" onClick={() => { setStep("email"); setError(""); setOtp(""); }}
                   style={{ background: "transparent", color: G.t3, padding: "4px 8px", borderRadius: 6, border: `1px solid ${G.border}`, fontSize: "0.78rem" }}>←</button>
-                <p style={{ color: G.t2, fontSize: "0.84rem" }}>OTP sent to <span style={{ color: G.t1 }}>+{phone}</span></p>
+                <p style={{ color: G.t2, fontSize: "0.84rem" }}>OTP sent to <span style={{ color: G.t1 }}>{email}</span></p>
               </div>
-              <div style={{ background: G.accentSoft, border: `1px solid ${G.accentBorder}`, borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: "0.8rem", color: G.accent }}>
-                📧 Check your email inbox for the 6-digit code
-              </div>
-              <input
-                type="number" placeholder="Enter 6-digit OTP" value={otp}
+              <input type="number" placeholder="Enter 6-digit OTP" value={otp}
                 onChange={e => setOtp(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") verifyOtp(); }}
                 className={otp.length === 6 ? "otp-sent" : ""}
-                style={{ ...inputStyle, letterSpacing: "0.2em", fontSize: "1.2rem", textAlign: "center" }}
-              />
+                style={{ ...inputStyle, letterSpacing: "0.2em", fontSize: "1.2rem", textAlign: "center" }} />
               <button className="btn" onClick={verifyOtp} disabled={loading}
                 style={{ background: G.accent, color: "#fff", padding: "12px", borderRadius: 10, fontSize: "0.92rem", fontWeight: 600, width: "100%", fontFamily: "'DM Sans',sans-serif", opacity: loading ? 0.7 : 1 }}>
                 {loading ? "Verifying…" : "Verify & Login"}
@@ -264,7 +484,6 @@ function LoginScreen({ onLogin }) {
               </div>
             </>
           )}
-
           {error && (
             <div style={{ background: G.redSoft, border: `1px solid ${G.red}40`, borderRadius: 8, padding: "9px 12px", marginTop: 12, fontSize: "0.8rem", color: G.red }}>
               {error}
@@ -276,13 +495,13 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// ── Main app ──────────────────────────────────────────────────
 export default function App() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [userId, setUserId] = useState(getStoredUser() || "");
+  const [activeTab, setActiveTab] = useState("jobs");
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -298,15 +517,13 @@ export default function App() {
       const res = await axios.get(`${API_BASE}/api/jobs/${userId}`, authHeaders());
       setJobs(res.data);
     } catch (err) {
-      // Token expired or invalid — force logout
       if (err.response?.status === 401) handleLogout();
       console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+    } finally { setLoading(false); }
+  }, [userId]);
 
   useEffect(() => { if (userId) fetchJobs(); }, [userId, fetchJobs]);
+
   useEffect(() => {
     if (!userId) return;
     const interval = setInterval(fetchJobs, 30000);
@@ -329,21 +546,16 @@ export default function App() {
     return mf && ms;
   });
 
-  if (window.location.pathname === "/admin") {
-  return <AdminPanel />;
-}
-
-if (!userId) {
-  return <LoginScreen onLogin={setUserId} />;
-}
+  if (window.location.pathname === "/admin") return <AdminPanel />;
+  if (!userId) return <LoginScreen onLogin={setUserId} />;
+  if (activeTab === "resume") return <ResumeTailor token={getToken()} />;
 
   const pending = jobs.filter(j => !j.applied).length;
   const applied = jobs.filter(j => j.applied).length;
 
   return (
     <div style={{ minHeight: "100vh", background: G.bg, padding: "24px 16px 48px", maxWidth: 820, margin: "0 auto" }}>
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           <p style={{ fontSize: "0.65rem", letterSpacing: "0.18em", color: G.accent, textTransform: "uppercase", marginBottom: 4 }}>Dashboard</p>
           <h1 style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1, letterSpacing: "-0.02em" }}>MAITX</h1>
@@ -354,23 +566,30 @@ if (!userId) {
         </div>
       </div>
 
+      {/* Nav tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {[["jobs", "💼 Jobs"], ["resume", "✨ Tailor Resume"]].map(([id, label]) => (
+          <button key={id} onClick={() => setActiveTab(id)}
+            style={{ padding: "8px 18px", borderRadius: 10, border: `1px solid ${activeTab === id ? G.accent : G.border}`, background: activeTab === id ? G.accentSoft : "transparent", color: activeTab === id ? G.accent : G.t2, cursor: "pointer", fontSize: "0.84rem", fontFamily: "inherit", fontWeight: activeTab === id ? 600 : 400 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="bento-grid">
         <BentoStat label="Total saved" value={jobs.length} color={G.accent} soft={G.accentSoft} />
         <BentoStat label="Pending" value={pending} color={G.amber} soft={G.amberSoft} sub={pending > 0 ? "Don't miss deadlines" : "All caught up!"} />
         <BentoStat label="Applied" value={applied} color={G.green} soft={G.greenSoft} />
       </div>
-
       <div className="bento-grid">
         <ApplyRateBox jobs={jobs} />
         <RecentActivity jobs={jobs} />
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <input
-          type="text" placeholder="Search jobs..." value={search}
+        <input type="text" placeholder="Search jobs..." value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 160, background: G.b2, border: `1px solid ${G.border}`, borderRadius: 10, padding: "8px 13px", color: G.t1, fontSize: "0.84rem", fontFamily: "'DM Sans',sans-serif" }}
-        />
+          style={{ flex: 1, minWidth: 160, background: G.b2, border: `1px solid ${G.border}`, borderRadius: 10, padding: "8px 13px", color: G.t1, fontSize: "0.84rem", fontFamily: "'DM Sans',sans-serif" }} />
         <div style={{ display: "flex", gap: 6 }}>
           {["all", "pending", "applied"].map(f => (
             <button key={f} onClick={() => setFilter(f)} className={`filter-btn${filter === f ? " active" : ""}`}>
