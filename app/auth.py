@@ -46,7 +46,7 @@ async def send_otp(phone: str) -> bool:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 "https://www.fast2sms.com/dev/bulkV2",
-                headers={"authorization": os.getenv("FAST2SMS_KEY", "")},
+                headers={"authorization": os.getenv("FAST2SMS_API_KEY", "")},
                 json={
                     "route": "otp",
                     "variables_values": otp,
