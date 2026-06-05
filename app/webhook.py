@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import PlainTextResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from app.router_agent import classify_and_process
 from app.pdf_handler import download_and_extract_pdf
 from app.database import users_collection
@@ -8,6 +10,7 @@ import os
 import re
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/webhook")
@@ -36,6 +39,7 @@ async def verify_webhook(request: Request):
 
 
 @router.post("/webhook")
+@limiter.limit("20/minute")
 async def receive_message(request: Request, background_tasks: BackgroundTasks):
     payload = await request.json()
 
@@ -89,7 +93,6 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
 async def handle_text_message(text: str, sender: str):
     user = users_collection.find_one({"phone": sender})
 
-    # New user - no record at all
     if not user:
         users_collection.insert_one({"phone": sender, "email": None, "onboarding": True})
         await send_message(
@@ -98,7 +101,6 @@ async def handle_text_message(text: str, sender: str):
         )
         return
 
-    # User exists but hasn't provided email yet
     if user.get("onboarding") and not user.get("email"):
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if re.match(email_pattern, text):
@@ -117,7 +119,6 @@ async def handle_text_message(text: str, sender: str):
             )
         return
 
-    # Fully onboarded — process normally
     await classify_and_process(text, sender)
 
 
