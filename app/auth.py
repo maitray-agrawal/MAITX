@@ -35,21 +35,25 @@ async def send_otp(phone: str) -> bool:
         "created_at": datetime.utcnow()
     })
     email = phone.strip()
-    api_key = os.getenv("RESEND_API_KEY", "")
+    api_key = os.getenv("BREVO_API_KEY", "")
+    sender_email = os.getenv("BREVO_SENDER", "")
     try:
         async with httpx.AsyncClient() as client:
             r = await client.post(
-                "https://api.resend.com/emails",
-                headers={"Authorization": f"Bearer {api_key}"},
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": api_key,
+                    "Content-Type": "application/json"
+                },
                 json={
-                    "from": "MAITX <onboarding@resend.dev>",
-                    "to": [email],
+                    "sender": {"name": "MAITX", "email": sender_email},
+                    "to": [{"email": email}],
                     "subject": f"MAITX OTP: {otp}",
-                    "text": f"Your MAITX verification code is: {otp}\n\nValid for 10 minutes. Do not share this with anyone.\n— MAITX TnP Tracker"
+                    "textContent": f"Your MAITX verification code is: {otp}\n\nValid for 10 minutes. Do not share this with anyone.\n— MAITX TnP Tracker"
                 }
             )
-        print(f"Resend response: {r.status_code} {r.text}")
-        return r.status_code == 200
+        print(f"Brevo response: {r.status_code} {r.text}")
+        return r.status_code == 201
     except Exception as e:
         print(f"Email send error: {e}")
         return False
