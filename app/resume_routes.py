@@ -8,11 +8,11 @@ router = APIRouter()
 
 def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     try:
-        import pypdf
-        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+        import fitz
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         text = ""
-        for page in reader.pages:
-            text += page.extract_text() or ""
+        for page in doc:
+            text += page.get_text()
         return text.strip()
     except Exception as e:
         print(f"PDF extraction error: {e}")
