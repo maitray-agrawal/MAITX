@@ -304,6 +304,11 @@ export default function App() {
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (userId) fetchJobs(); }, [userId, fetchJobs]);
+  useEffect(() => {
+    if (!userId) return;
+    const interval = setInterval(fetchJobs, 30000);
+    return () => clearInterval(interval);
+  }, [userId, fetchJobs]);
 
   const markApplied = async (id) => {
     await axios.patch(`${API_BASE}/api/jobs/${id}/applied`, {}, authHeaders());
