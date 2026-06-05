@@ -169,7 +169,7 @@ function LoginScreen({ onLogin }) {
 
   const requestOtp = async () => {
     const val = phone.trim();
-    if (!val || val.length < 10) { setError("Enter a valid number with country code"); return; }
+    if (!val || !val.includes("@")) { setError("Enter a valid email address"); return; }
     setLoading(true); setError("");
     try {
       await axios.post(`${API_BASE}/auth/request-otp`, { phone: val });
@@ -191,7 +191,8 @@ function LoginScreen({ onLogin }) {
       localStorage.setItem("maitx_user", res.data.user_id);
       onLogin(res.data.user_id);
     } catch (e) {
-      setError(e.response?.data?.detail || "Invalid OTP. Try again.");
+      const msg = e.response?.data?.detail || "Invalid OTP. Try again.";
+      setError(msg.includes("expired") ? "OTP expired. Please request a new one." : msg);
     } finally {
       setLoading(false);
     }

@@ -1,8 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from app.auth import send_otp, verify_otp, create_jwt, verify_jwt
 from app.database import users_collection
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -15,7 +18,8 @@ class OTPVerify(BaseModel):
     otp: str
 
 @router.post("/auth/request-otp")
-async def request_otp(body: OTPRequest):
+@limiter.limit("5/minute")
+async def request_otp(request: Request, body: OTPRequest):
     email = body.phone.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email address")
@@ -25,7 +29,8 @@ async def request_otp(body: OTPRequest):
     return {"message": "OTP sent via WhatsApp"}
 
 @router.post("/auth/verify-otp")
-async def verify_otp_route(body: OTPVerify):
+@limiter.limit("10/minute")
+async def verify_otp_route(request: Request, body: OTPVerify):
     email = body.phone.strip().lower()
     otp = body.otp.strip()
     if verify_otp(email, otp):
