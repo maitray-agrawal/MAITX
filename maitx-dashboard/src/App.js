@@ -236,7 +236,7 @@ function LoginScreen({ onLogin }) {
                 <p style={{ color: G.t2, fontSize: "0.84rem" }}>OTP sent to <span style={{ color: G.t1 }}>+{phone}</span></p>
               </div>
               <div style={{ background: G.accentSoft, border: `1px solid ${G.accentBorder}`, borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: "0.8rem", color: G.accent }}>
-                📱 Check your WhatsApp for the 6-digit code
+                📱 Check your SMS messages for the 6-digit code
               </div>
               <input
                 type="number" placeholder="Enter 6-digit OTP" value={otp}
