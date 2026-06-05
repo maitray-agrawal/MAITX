@@ -1,12 +1,13 @@
 import os
 import random
 import jwt
-import httpx
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from app.database import otp_collection
 
 JWT_SECRET = os.getenv("JWT_SECRET", "maitx_super_secret_change_in_prod")
-JWT_EXPIRY_HOURS = 24 * 7  # 7 days
+JWT_EXPIRY_HOURS = 24 * 7
 
 
 def generate_otp() -> str:
@@ -39,25 +40,35 @@ async def send_otp(phone: str) -> bool:
         "created_at": datetime.utcnow()
     })
 
-    # Strip country code for Fast2SMS — it needs 10-digit Indian number
-    number = phone[-10:]
+    # phone field stores email when using email OTP
+    email = phone.strip()
+    gmail_user = os.getenv("GMAIL_USER", "")
+    gmail_pass = os.getenv("GMAIL_PASS", "")
 
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "https://www.fast2sms.com/dev/bulkV2",
-                headers={"authorization": os.getenv("FAST2SMS_API_KEY", "")},
-                json={
-                    "route": "otp",
-                    "variables_values": otp,
-                    "numbers": number,
-                }
-            )
-        result = resp.json()
-        print(f"Fast2SMS response: {result}")
-        return result.get("return") is True
+        msg = MIMEText(f"""
+Hi,
+
+Your MAITX verification code is:
+
+{otp}
+
+Valid for 10 minutes. Do not share this with anyone.
+
+— MAITX TnP Tracker
+""")
+        msg["Subject"] = f"MAITX OTP: {otp}"
+        msg["From"] = gmail_user
+        msg["To"] = email
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(gmail_user, gmail_pass)
+            server.sendmail(gmail_user, email, msg.as_string())
+
+        print(f"OTP email sent to {email}")
+        return True
     except Exception as e:
-        print(f"SMS send error: {e}")
+        print(f"Email send error: {e}")
         return False
 
 

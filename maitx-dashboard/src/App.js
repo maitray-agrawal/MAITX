@@ -217,16 +217,16 @@ function LoginScreen({ onLogin }) {
             <>
               <p style={{ color: G.t2, fontSize: "0.84rem", marginBottom: 16, textAlign: "center" }}>Enter your WhatsApp number</p>
               <input
-                type="tel" placeholder="91XXXXXXXXXX" value={phone}
+                type="email" placeholder="you@gmail.com" value={phone}
                 onChange={e => setPhone(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") requestOtp(); }}
                 style={inputStyle}
               />
               <button className="btn" onClick={requestOtp} disabled={loading}
                 style={{ background: G.accent, color: "#fff", padding: "12px", borderRadius: 10, fontSize: "0.92rem", fontWeight: 600, width: "100%", fontFamily: "'DM Sans',sans-serif", opacity: loading ? 0.7 : 1 }}>
-                {loading ? "Sending OTP…" : "Send OTP via WhatsApp"}
+                {loading ? "Sending OTP…" : "Send OTP via Email"}
               </button>
-              <p style={{ color: G.t3, fontSize: "0.7rem", textAlign: "center", marginTop: 14 }}>Include country code · 91XXXXXXXXXX for India</p>
+              <p style={{ color: G.t3, fontSize: "0.7rem", textAlign: "center", marginTop: 14 }}>Enter email to receive OTP · 91XXXXXXXXXX for India</p>
             </>
           ) : (
             <>
@@ -236,7 +236,7 @@ function LoginScreen({ onLogin }) {
                 <p style={{ color: G.t2, fontSize: "0.84rem" }}>OTP sent to <span style={{ color: G.t1 }}>+{phone}</span></p>
               </div>
               <div style={{ background: G.accentSoft, border: `1px solid ${G.accentBorder}`, borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: "0.8rem", color: G.accent }}>
-                📱 Check your SMS messages for the 6-digit code
+                📧 Check your email inbox for the 6-digit code
               </div>
               <input
                 type="number" placeholder="Enter 6-digit OTP" value={otp}
