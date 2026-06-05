@@ -2,8 +2,10 @@ from fastapi import APIRouter, Request, BackgroundTasks
 from fastapi.responses import PlainTextResponse
 from app.router_agent import classify_and_process
 from app.pdf_handler import download_and_extract_pdf
+from app.database import users_collection
+from app.whatsapp import send_message
 import os
-import requests
+import re
 
 router = APIRouter()
 
@@ -52,9 +54,9 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
         print(f"Message type: {msg_type} from {sender}")
 
         if msg_type == "text":
-            text = message["text"]["body"]
+            text = message["text"]["body"].strip()
             print(f"Text message: {text[:80]}...")
-            background_tasks.add_task(classify_and_process, text, sender)
+            background_tasks.add_task(handle_text_message, text, sender)
 
         elif msg_type == "document":
             doc = message.get("document", {})
@@ -84,12 +86,46 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
     return {"status": "ok"}
 
 
+async def handle_text_message(text: str, sender: str):
+    user = users_collection.find_one({"phone": sender})
+
+    # New user - no record at all
+    if not user:
+        users_collection.insert_one({"phone": sender, "email": None, "onboarding": True})
+        await send_message(
+            sender,
+            "👋 Welcome to MAITX TnP Tracker!\n\nPlease reply with your college email address to complete setup and access your dashboard."
+        )
+        return
+
+    # User exists but hasn't provided email yet
+    if user.get("onboarding") and not user.get("email"):
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if re.match(email_pattern, text):
+            users_collection.update_one(
+                {"phone": sender},
+                {"$set": {"email": text.lower(), "onboarding": False}}
+            )
+            await send_message(
+                sender,
+                f"✅ Setup complete! Your email *{text}* is linked.\n\nYou can now login at maitx.vercel.app with this email.\n\nForward TnP job messages here and they'll appear on your dashboard!"
+            )
+        else:
+            await send_message(
+                sender,
+                "That doesn't look like a valid email. Please reply with your college email address (e.g. name@college.edu)"
+            )
+        return
+
+    # Fully onboarded — process normally
+    await classify_and_process(text, sender)
+
+
 async def process_pdf_message(media_id: str, sender: str, filename: str, mime_type: str = "application/pdf"):
     print(f"Processing document: {filename} ({mime_type}) from {sender}")
     media_url = f"https://graph.facebook.com/v18.0/{media_id}"
     text = download_and_extract_pdf(media_url, mime_type)
     if not text:
-        from app.whatsapp import send_message
         await send_message(
             sender,
             "Sorry, could not read that file. Please send job details as text."

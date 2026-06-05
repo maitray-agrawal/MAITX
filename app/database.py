@@ -56,3 +56,5 @@ async def get_jobs_near_deadline():
 # OTP store — auto-expires after 10 minutes
 otp_collection = db["otp_store"]
 otp_collection.create_index("created_at", expireAfterSeconds=600)
+
+users_collection = db["users"]
