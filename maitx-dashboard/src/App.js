@@ -133,8 +133,11 @@ function JobCard({ job, onMarkApplied, onDelete, index }) {
         </span>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-        {[["📅", job.deadline], ["💰", job.stipend], ["🏢", job.work_format], ["📍", job.location]].filter(([, v]) => v).map(([icon, val]) => (
-          <span key={val} style={{ fontSize: "0.73rem", color: G.t2, background: G.b1, border: `1px solid ${G.border}`, borderRadius: 6, padding: "2px 8px" }}>{icon} {val}</span>
+        {[["📅", job.deadline], ["💰", job.stipend], ["🏢", job.work_format], ["📍", job.location]].filter(([, v]) => v).map(([icon, val]) => {
+          const isDeadline = icon === "📅";
+          const isUrgent = isDeadline && val && (() => { try { const d = new Date(val); const days = Math.ceil((d - new Date()) / 86400000); return days >= 0 && days <= 3; } catch { return false; } })();
+          const isSoon = isDeadline && val && (() => { try { const d = new Date(val); const days = Math.ceil((d - new Date()) / 86400000); return days > 3 && days <= 7; } catch { return false; } })();
+          return (<span key={val} style={{ fontSize: "0.73rem", color: isUrgent ? G.red : isSoon ? G.amber : G.t2, background: isUrgent ? G.redSoft : isSoon ? G.amberSoft : G.b1, border: `1px solid ${isUrgent ? G.red : isSoon ? G.amber : G.border}`, borderRadius: 6, padding: "2px 8px", fontWeight: isUrgent ? 600 : 400 }}>{icon} {val}{isUrgent ? " ⚠️" : isSoon ? " ⏰" : ""}</span>
         ))}
       </div>
       {job.eligibility && <p style={{ fontSize: "0.75rem", color: G.t3, marginBottom: 4 }}>🎓 {job.eligibility}</p>}
