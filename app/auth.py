@@ -1,9 +1,9 @@
 import os
 import random
 import jwt
+import httpx
 from datetime import datetime, timedelta
 from app.database import otp_collection
-from app.whatsapp import send_message
 
 JWT_SECRET = os.getenv("JWT_SECRET", "maitx_super_secret_change_in_prod")
 JWT_EXPIRY_HOURS = 24 * 7  # 7 days
@@ -32,23 +32,32 @@ def verify_jwt(token: str) -> dict:
 
 async def send_otp(phone: str) -> bool:
     otp = generate_otp()
-    otp_collection.delete_many({"phone": phone})  # clear old OTPs
+    otp_collection.delete_many({"phone": phone})
     otp_collection.insert_one({
         "phone": phone,
         "otp": otp,
         "created_at": datetime.utcnow()
     })
+
+    # Strip country code for Fast2SMS — it needs 10-digit Indian number
+    number = phone[-10:]
+
     try:
-        await send_message(
-            phone,
-            f"🔐 *MAITX Verification*\n\n"
-            f"Your OTP is: *{otp}*\n\n"
-            f"Valid for 10 minutes. Do not share with anyone."
-        )
-        print(f"OTP sent to {phone}")
-        return True
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://www.fast2sms.com/dev/bulkV2",
+                headers={"authorization": os.getenv("FAST2SMS_KEY", "")},
+                json={
+                    "route": "otp",
+                    "variables_values": otp,
+                    "numbers": number,
+                }
+            )
+        result = resp.json()
+        print(f"Fast2SMS response: {result}")
+        return result.get("return") is True
     except Exception as e:
-        print(f"OTP send error: {e}")
+        print(f"SMS send error: {e}")
         return False
 
 
