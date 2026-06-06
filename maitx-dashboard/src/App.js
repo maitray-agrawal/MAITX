@@ -712,7 +712,6 @@ export default function App() {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [userId, setUserId] = useState(getStoredUser() || "");
-  const [activeTab, setActiveTab] = useState("jobs");
   const [prefilledJob, setPrefilledJob] = useState(null);
   const [activeTab, setActiveTab] = useState("jobs");
 
