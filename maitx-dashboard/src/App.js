@@ -364,6 +364,9 @@ function ResumeTailor({ token, prefilledJob, onBack }) {
 
   return (
     <div style={{ minHeight: "100vh", background: G.bg, padding: "24px 16px 48px", maxWidth: 820, margin: "0 auto" }}>
+      {onBack && (
+        <button onClick={onBack} style={{ background: "transparent", color: "#8888aa", border: "1px solid #25253a", borderRadius: 9, padding: "7px 14px", fontSize: "0.82rem", fontFamily: "inherit", cursor: "pointer", marginBottom: 20, display: "inline-flex", alignItems: "center", gap: 6 }}>← Back to Dashboard</button>
+      )}
       <div style={{ marginBottom: 24 }}>
         <p style={{ fontSize: "0.65rem", letterSpacing: "0.18em", color: G.accent, textTransform: "uppercase", marginBottom: 4 }}>AI-Powered</p>
         <h1 style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1 }}>Resume Tailor</h1>
