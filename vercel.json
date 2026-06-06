@@ -1,5 +1,0 @@
-{
-  "buildCommand": "cd maitx-dashboard && npm run build",
-  "outputDirectory": "maitx-dashboard/build",
-  "installCommand": "cd maitx-dashboard && npm install"
-}
