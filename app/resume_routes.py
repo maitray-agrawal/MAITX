@@ -26,8 +26,8 @@ async def analyze_resume(
 ):
     if not resume.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF resumes supported")
-    if len(jd.strip()) < 50:
-        raise HTTPException(status_code=400, detail="Job description too short")
+    if len(jd.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Enter at least a role or keywords")
 
     pdf_bytes = await resume.read()
     if len(pdf_bytes) > 5 * 1024 * 1024:

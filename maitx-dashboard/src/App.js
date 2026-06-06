@@ -219,7 +219,7 @@ function ResumeTailor({ token }) {
 
   const analyze = async () => {
     if (!resumeFile) { setError("Upload your resume PDF"); return; }
-    if (jd.trim().length < 50) { setError("Paste a job description (min 50 chars)"); return; }
+    if (jd.trim().length < 3) { setError("Enter at least a role or keywords"); return; }
     setLoading(true); setError("");
     try {
       const form = new FormData();
