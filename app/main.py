@@ -54,3 +54,11 @@ async def debug_env():
     import os
     key = os.getenv("FAST2SMS_KEY", "NOT SET")
     return {"key_length": len(key), "key_preview": key[:6] + "..." if len(key) > 6 else "TOO SHORT"}
+
+
+@app.on_event("startup")
+async def startup_event():
+    from app.database import ensure_indexes
+    ensure_indexes()
+    start_scheduler()
+    print("TnP Tracker MAITX running")

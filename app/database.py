@@ -53,8 +53,15 @@ async def get_jobs_near_deadline():
     cursor = jobs_collection.find({"notified": False})
     return list(cursor)
 
-# OTP store — auto-expires after 10 minutes
+# OTP store â€” auto-expires after 10 minutes
 otp_collection = db["otp_store"]
-otp_collection.create_index("created_at", expireAfterSeconds=600)
+
+def ensure_indexes():
+    try:
+        otp_collection.create_index("created_at", expireAfterSeconds=600)
+        print("MongoDB indexes created")
+    except Exception as e:
+        print(f"Index creation warning: {e}")
+
 
 users_collection = db["users"]
