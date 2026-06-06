@@ -1,5 +1,4 @@
-@"
-from dotenv import load_dotenv
+﻿from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI
@@ -15,12 +14,9 @@ from app.resume_routes import router as resume_router
 from app.scheduler import start_scheduler
 
 limiter = Limiter(key_func=get_remote_address)
-
 app = FastAPI(title="TnP Tracker - MAITX")
-
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 app.include_router(webhook_router)
 app.include_router(api_router)
 app.include_router(auth_router)
@@ -45,5 +40,3 @@ async def startup_event():
 @app.get("/")
 async def root():
     return {"status": "MAITX TnP Tracker is live"}
-"@ | Out-File -Encoding utf8 app\main.py
-
