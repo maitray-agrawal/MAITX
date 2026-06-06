@@ -1,10 +1,9 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-dotenv
 requests
 groq
-pymongo
-motor
+pymongo[srv]
 pydantic
 apscheduler
 pymupdf
@@ -16,4 +15,4 @@ python-multipart
 slowapi
 PyJWT
 httpx
-sib-api-v3-sdk
+brevo-python
