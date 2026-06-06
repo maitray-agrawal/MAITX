@@ -1,11 +1,8 @@
+fix_*.py
+test_*.pdf
+data/
+tools/
 venv/
-.env
 __pycache__/
 *.pyc
-*.pyo
-.pytest_cache/
-fix_files.py
-fix_whatsapp.py
-fix_scheduler.py
-test_pipeline.py
-test_webhook.py
+.env
