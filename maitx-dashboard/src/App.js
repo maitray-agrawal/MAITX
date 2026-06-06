@@ -351,7 +351,19 @@ function ResumeTailor({ token }) {
                         Set Active
                       </button>
                     )}
-                    <button onClick={() => deleteResume(r.id)} className="btn"
+                    <a href={`${API_BASE}/api/resume/download/${r.id}`}
+              onClick={async (e) => {
+                e.preventDefault();
+                const res = await fetch(`${API_BASE}/api/resume/download/${r.id}`, { headers: { Authorization: `Bearer ${token}` } });
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a"); a.href = url; a.download = r.filename || "resume.pdf"; a.click();
+                URL.revokeObjectURL(url);
+              }}
+              style={{ textDecoration: "none" }}>
+              <button style={{ background: "transparent", color: G.accent, border: `1px solid ${G.accentBorder}`, borderRadius: 7, padding: "4px 10px", fontSize: "0.75rem", cursor: "pointer", fontFamily: "inherit" }}>↓ PDF</button>
+            </a>
+            <button onClick={() => deleteResume(r.id)} className="btn"
                       style={{ background: G.redSoft, color: G.red, border: `1px solid ${G.red}40`, borderRadius: 8, padding: "5px 10px", fontSize: "0.75rem" }}>
                       Delete
                     </button>
