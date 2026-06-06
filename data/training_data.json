@@ -1,0 +1,54 @@
+[
+  {
+    "input": "\nExtract job details:\nCompany: Infosys\nRole: SDE Intern\nDeadline: 5th June 2026\nStipend: 25000/month\nLocation: Pune\nFormat: Work from Office\nEligibility: BE/BTech CS/IT students only\nLink: https://infosys.com/careers\n",
+    "output": "{\"company_name\": \"Infosys\", \"role\": \"SDE Intern\", \"deadline\": \"5th June 2026\", \"stipend\": \"25000/month\", \"work_format\": \"Work from Office\", \"eligibility\": \"BE/BTech CS/IT students only\", \"location\": \"Pune\", \"apply_link\": \"https://infosys.com/careers\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Intel Market Research\nRole: HR Intern, Digital Marketing Intern, BD Intern\nDeadline: 31.5.2026, 3PM\nStipend: 5,000/- Per month\nLocation: Kharadi, Pune\nFormat: Offline\nEligibility: MBA/BBA/BTech\nLink: https://forms.gle/CFAoe7PiXWVCX5578\n",
+    "output": "{\"company_name\": \"Intel Market Research\", \"role\": \"HR Intern, Digital Marketing Intern, BD Intern\", \"deadline\": \"31.5.2026, 3PM\", \"stipend\": \"5,000/- Per month\", \"work_format\": \"Offline\", \"eligibility\": \"MBA/BBA/BTech\", \"location\": \"Kharadi, Pune\", \"apply_link\": \"https://forms.gle/CFAoe7PiXWVCX5578\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Intel Market Research\nRole: Digital Marketing Intern\nDeadline: 31.5.2026,3PM\nStipend: 5,000/- Per month\nLocation: Kharadi, Pune\nFormat: Offline\nEligibility: MBA/BBA/BTech\nLink: https://forms.gle/CFAoe7PiXWVCX5578\n",
+    "output": "{\"company_name\": \"Intel Market Research\", \"role\": \"Digital Marketing Intern\", \"deadline\": \"31.5.2026,3PM\", \"stipend\": \"5,000/- Per month\", \"work_format\": \"Offline\", \"eligibility\": \"MBA/BBA/BTech\", \"location\": \"Kharadi, Pune\", \"apply_link\": \"https://forms.gle/CFAoe7PiXWVCX5578\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: RhythmFlows Solutions\nRole: DevOps Engineer Intern\nDeadline: 31-05-2026\nStipend: 14000\nLocation: Pune\nFormat: None\nEligibility: BE/BTech (CS/IT/E&TC) 2027 batch\nLink: https://docs.google.com/forms/d/e/1FAIpQLSfrlJQovg4Eahv3ADQ3WP4Oqwy6_lFtuMMtMVsttJARQ0fJUA/viewform?usp=publish-editor\n",
+    "output": "{\"company_name\": \"RhythmFlows Solutions\", \"role\": \"DevOps Engineer Intern\", \"deadline\": \"31-05-2026\", \"stipend\": \"14000\", \"work_format\": null, \"eligibility\": \"BE/BTech (CS/IT/E&TC) 2027 batch\", \"location\": \"Pune\", \"apply_link\": \"https://docs.google.com/forms/d/e/1FAIpQLSfrlJQovg4Eahv3ADQ3WP4Oqwy6_lFtuMMtMVsttJARQ0fJUA/viewform?usp=publish-editor\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Intel Market Research\nRole: HR Intern/Digital Marketing Intern/BD Intern\nDeadline: 2026-05-31 15:00:00\nStipend: 5000\nLocation: None\nFormat: WFO\nEligibility: MBA/BBA/BTech (varies by role, female candidates only for HR Intern)\nLink: https://forms.gle/CFAoe7PiXWVCX5578\n",
+    "output": "{\"company_name\": \"Intel Market Research\", \"role\": \"HR Intern/Digital Marketing Intern/BD Intern\", \"deadline\": \"2026-05-31 15:00:00\", \"stipend\": \"5000\", \"work_format\": \"WFO\", \"eligibility\": \"MBA/BBA/BTech (varies by role, female candidates only for HR Intern)\", \"location\": null, \"apply_link\": \"https://forms.gle/CFAoe7PiXWVCX5578\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Invince\nRole: Full Stack Developer\nDeadline: 27th May 2026 at 4:00 pm\nStipend: 20,000-25,000 Per Month\nLocation: Pune\nFormat: None\nEligibility: BE/BTech/MTech (CS/IT) 2027 Batch with CGPA above 8.5\nLink: https://docs.google.com/forms/d/e/1FAIpQLSeiL9FBcWM6-9kIlqEnhMcdkRKMXrO926moGFol-NlldZBUqA/viewform?usp=preview\n",
+    "output": "{\"company_name\": \"Invince\", \"role\": \"Full Stack Developer\", \"deadline\": \"27th May 2026 at 4:00 pm\", \"stipend\": \"20,000-25,000 Per Month\", \"work_format\": null, \"eligibility\": \"BE/BTech/MTech (CS/IT) 2027 Batch with CGPA above 8.5\", \"location\": \"Pune\", \"apply_link\": \"https://docs.google.com/forms/d/e/1FAIpQLSeiL9FBcWM6-9kIlqEnhMcdkRKMXrO926moGFol-NlldZBUqA/viewform?usp=preview\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Happiness Plans\nRole: Data Analytics Intern\nDeadline: None\nStipend: \u20b910,000 - \u20b915,000 /month\nLocation: Indore\nFormat: In-office, Full-time\nEligibility: Proficiency in MS-Excel and data handling. Strong analytical, problem-solving, and communication skills. Must be based in or able to commute to Indore.\nLink: https://internshala.com/internship/detail/data-analytics-internship-in-indore-at-happiness-plans1779279535\n",
+    "output": "{\"company_name\": \"Happiness Plans\", \"role\": \"Data Analytics Intern\", \"deadline\": null, \"stipend\": \"\\u20b910,000 - \\u20b915,000 /month\", \"work_format\": \"In-office, Full-time\", \"eligibility\": \"Proficiency in MS-Excel and data handling. Strong analytical, problem-solving, and communication skills. Must be based in or able to commute to Indore.\", \"location\": \"Indore\", \"apply_link\": \"https://internshala.com/internship/detail/data-analytics-internship-in-indore-at-happiness-plans1779279535\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: ASSA ABLOY\nRole: Intern- IT Department\nDeadline: 02-06-2026 till 4:00 PM\nStipend: INR 10,000 per month\nLocation: Mumbai or Jamnagar\nFormat: 6 months Internship from Office\nEligibility: BE, B.Tech (CS/IT), 2026 & 2027 Batch\nLink: https://forms.gle/JLX8WXwyHcNJraF39\n",
+    "output": "{\"company_name\": \"ASSA ABLOY\", \"role\": \"Intern- IT Department\", \"deadline\": \"02-06-2026 till 4:00 PM\", \"stipend\": \"INR 10,000 per month\", \"work_format\": \"6 months Internship from Office\", \"eligibility\": \"BE, B.Tech (CS/IT), 2026 & 2027 Batch\", \"location\": \"Mumbai or Jamnagar\", \"apply_link\": \"https://forms.gle/JLX8WXwyHcNJraF39\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Amazon\nRole: ML Summer School\nDeadline: 13/06/2026\nStipend: None\nLocation: India\nFormat: 100% virtual, self-paced\nEligibility: Engineering students enrolled in Bachelor\u2019s/Master\u2019s/ PhD degree from any recognized institute of India and are expected to graduate in 2027 or 2028\nLink: https://unstop.com/hackathons/crp-amazon-ml-summer-school-2026-amazon-1688859?ref=amcJFfEZ\n",
+    "output": "{\"company_name\": \"Amazon\", \"role\": \"ML Summer School\", \"deadline\": \"13/06/2026\", \"stipend\": null, \"work_format\": \"100% virtual, self-paced\", \"eligibility\": \"Engineering students enrolled in Bachelor\\u2019s/Master\\u2019s/ PhD degree from any recognized institute of India and are expected to graduate in 2027 or 2028\", \"location\": \"India\", \"apply_link\": \"https://unstop.com/hackathons/crp-amazon-ml-summer-school-2026-amazon-1688859?ref=amcJFfEZ\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Global Payment\nRole: None\nDeadline: 03-06-2026\nStipend: INR 15,000 - 30,000 per month\nLocation: Pune\nFormat: Onsite\nEligibility: Students pursuing technical (IT) bachelor's or master's degrees from recognized colleges/institutes/universities with a minimum aggregate score of 75% across all subjects\nLink: https://docs.google.com/forms/d/e/1FAIpQLSeMTP6f_bWgKDXnFMTIGqM-44FkU5di_osOpwyIdUzlyRvIlg/viewform?usp=sharing&ouid=107297966819772451934\n",
+    "output": "{\"company_name\": \"Global Payment\", \"role\": null, \"deadline\": \"03-06-2026\", \"stipend\": \"INR 15,000 - 30,000 per month\", \"work_format\": \"Onsite\", \"eligibility\": \"Students pursuing technical (IT) bachelor's or master's degrees from recognized colleges/institutes/universities with a minimum aggregate score of 75% across all subjects\", \"location\": \"Pune\", \"apply_link\": \"https://docs.google.com/forms/d/e/1FAIpQLSeMTP6f_bWgKDXnFMTIGqM-44FkU5di_osOpwyIdUzlyRvIlg/viewform?usp=sharing&ouid=107297966819772451934\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: KONE Elevator India Private Limited\nRole: Technology \u2013Cloud, Data Analytics & AI ML, Electronics and  Communication, Electrical, Embedded, Cyber Security\nDeadline: 03-06-2026 till 5:00 pm\nStipend: 15,000 per month\nLocation: None\nFormat: None\nEligibility: 80% in 10th and 12th grade and UG is 80%, No standing arrear, Only students who have not secured an internship are eligible to apply\nLink: https://docs.google.com/forms/d/e/1FAIpQLSdx2UR77ioBjugWGNLmXKJUog8LfqHnFvaWYetTkPf0SC0EXQ/viewform?usp=sharing&ouid=107297966819772451934\n",
+    "output": "{\"company_name\": \"KONE Elevator India Private Limited\", \"role\": \"Technology \\u2013Cloud, Data Analytics & AI ML, Electronics and  Communication, Electrical, Embedded, Cyber Security\", \"deadline\": \"03-06-2026 till 5:00 pm\", \"stipend\": \"15,000 per month\", \"work_format\": null, \"eligibility\": \"80% in 10th and 12th grade and UG is 80%, No standing arrear, Only students who have not secured an internship are eligible to apply\", \"location\": null, \"apply_link\": \"https://docs.google.com/forms/d/e/1FAIpQLSdx2UR77ioBjugWGNLmXKJUog8LfqHnFvaWYetTkPf0SC0EXQ/viewform?usp=sharing&ouid=107297966819772451934\"}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Intel Market Research\nRole: Business Development Trainee\nDeadline: None\nStipend: 5000\nLocation: City Vista, Kharadi- Pune\nFormat: None\nEligibility: None\nLink: None\n",
+    "output": "{\"company_name\": \"Intel Market Research\", \"role\": \"Business Development Trainee\", \"deadline\": null, \"stipend\": \"5000\", \"work_format\": null, \"eligibility\": null, \"location\": \"City Vista, Kharadi- Pune\", \"apply_link\": null}"
+  },
+  {
+    "input": "\nExtract job details:\nCompany: Haystek\nRole: AI - ML Intern\nDeadline: None\nStipend: None\nLocation: None\nFormat: None\nEligibility: Currently pursuing a Bachelor's or Master\u2019s degree in Computer Science, Artificial Intelligence, Machine Learning, Electronics & Communication Engineering, or a related field\nLink: None\n",
+    "output": "{\"company_name\": \"Haystek\", \"role\": \"AI - ML Intern\", \"deadline\": null, \"stipend\": null, \"work_format\": null, \"eligibility\": \"Currently pursuing a Bachelor's or Master\\u2019s degree in Computer Science, Artificial Intelligence, Machine Learning, Electronics & Communication Engineering, or a related field\", \"location\": null, \"apply_link\": null}"
+  }
+]
