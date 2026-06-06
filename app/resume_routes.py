@@ -321,88 +321,159 @@ Return ONLY the JSON. No explanation."""
     import json
     data = json.loads(response.choices[0].message.content.strip())
 
-    # Generate PDF
+    # Generate strict ATS-compliant PDF
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
-        rightMargin=1.8*cm, leftMargin=1.8*cm,
-        topMargin=1.5*cm, bottomMargin=1.5*cm)
 
-    styles = getSampleStyleSheet()
+    # ATS standard: 1 inch margins, no columns, no tables, no graphics
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        rightMargin=2.0*cm, leftMargin=2.0*cm,
+        topMargin=1.8*cm, bottomMargin=1.8*cm
+    )
     story = []
 
-    # Color scheme
-    accent_color = colors.HexColor("#7c6af7") if style == "ats" else colors.HexColor("#1a1a2e")
-    
-    name_style = ParagraphStyle("name", fontSize=22, fontName="Helvetica-Bold",
-        textColor=accent_color, alignment=TA_CENTER, spaceAfter=4)
-    contact_style = ParagraphStyle("contact", fontSize=9, fontName="Helvetica",
-        textColor=colors.HexColor("#555555"), alignment=TA_CENTER, spaceAfter=12)
-    section_style = ParagraphStyle("section", fontSize=11, fontName="Helvetica-Bold",
-        textColor=accent_color, spaceBefore=14, spaceAfter=4)
-    body_style = ParagraphStyle("body", fontSize=9.5, fontName="Helvetica",
-        textColor=colors.HexColor("#222222"), spaceAfter=3, leading=14)
-    bullet_style = ParagraphStyle("bullet", fontSize=9.5, fontName="Helvetica",
-        textColor=colors.HexColor("#333333"), spaceAfter=2, leading=13,
-        leftIndent=12, bulletIndent=0)
-    sub_style = ParagraphStyle("sub", fontSize=9, fontName="Helvetica-Oblique",
-        textColor=colors.HexColor("#666666"), spaceAfter=2)
+    # ATS-safe styles: black text only, standard fonts, clear hierarchy
+    name_style = ParagraphStyle("name",
+        fontSize=16, fontName="Helvetica-Bold",
+        textColor=colors.black,
+        alignment=1,  # center
+        spaceAfter=2, spaceBefore=0)
+
+    contact_style = ParagraphStyle("contact",
+        fontSize=10, fontName="Helvetica",
+        textColor=colors.black,
+        alignment=1,
+        spaceAfter=6)
+
+    section_style = ParagraphStyle("section",
+        fontSize=11, fontName="Helvetica-Bold",
+        textColor=colors.black,
+        spaceBefore=10, spaceAfter=3,
+        borderPadding=(0,0,2,0))
+
+    role_style = ParagraphStyle("role",
+        fontSize=10, fontName="Helvetica-Bold",
+        textColor=colors.black,
+        spaceAfter=1, spaceBefore=4)
+
+    date_style = ParagraphStyle("date",
+        fontSize=10, fontName="Helvetica-Oblique",
+        textColor=colors.HexColor("#444444"),
+        spaceAfter=2)
+
+    body_style = ParagraphStyle("body",
+        fontSize=10, fontName="Helvetica",
+        textColor=colors.black,
+        spaceAfter=2, leading=14)
+
+    bullet_style = ParagraphStyle("bullet",
+        fontSize=10, fontName="Helvetica",
+        textColor=colors.black,
+        spaceAfter=2, leading=13,
+        leftIndent=14)
 
     def section_header(title):
+        story.append(Spacer(1, 4))
         story.append(Paragraph(title.upper(), section_style))
-        story.append(HRFlowable(width="100%", thickness=0.5, color=accent_color, spaceAfter=6))
+        # Simple black line - ATS safe
+        story.append(HRFlowable(
+            width="100%", thickness=1,
+            color=colors.black,
+            spaceAfter=4, spaceBefore=0
+        ))
 
-    # Name & Contact
-    story.append(Paragraph(data.get("name", ""), name_style))
-    contact_parts = [p for p in [data.get("email"), data.get("phone"), data.get("linkedin")] if p]
-    story.append(Paragraph(" · ".join(contact_parts), contact_style))
+    # ── NAME (centered, bold) ──
+    name = data.get("name", "").strip()
+    story.append(Paragraph(name, name_style))
 
-    # Summary
+    # ── CONTACT LINE (single line, | separated - ATS standard) ──
+    contact_parts = []
+    if data.get("phone"): contact_parts.append(data["phone"].strip())
+    if data.get("email"): contact_parts.append(data["email"].strip())
+    if data.get("linkedin") and data["linkedin"].strip():
+        contact_parts.append(data["linkedin"].strip())
+    if contact_parts:
+        story.append(Paragraph(" | ".join(contact_parts), contact_style))
+
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.black, spaceAfter=6))
+
+    # ── PROFESSIONAL SUMMARY ──
     if data.get("summary"):
         section_header("Professional Summary")
-        story.append(Paragraph(data["summary"], body_style))
+        story.append(Paragraph(data["summary"].strip(), body_style))
 
-    # Skills by category
+    # ── SKILLS (category: skill1, skill2 format - ATS parseable) ──
+    section_header("Technical Skills")
     if data.get("skills_by_category"):
-        section_header("Skills")
         for category, skills in data["skills_by_category"].items():
             if skills:
-                story.append(Paragraph(f"<b>{category}:</b> {', '.join(skills)}", body_style))
+                skills_clean = [s.strip() for s in skills if s.strip()]
+                story.append(Paragraph(
+                    f"<b>{category}:</b> {', '.join(skills_clean)}",
+                    body_style
+                ))
     elif data.get("skills"):
-        section_header("Skills")
-        story.append(Paragraph(" · ".join(data["skills"]), body_style))
+        # Group into rows of 6 for readability
+        skills = [s.strip() for s in data["skills"] if s.strip()]
+        for i in range(0, len(skills), 6):
+            story.append(Paragraph(", ".join(skills[i:i+6]), body_style))
 
-    # Experience
+    # ── EXPERIENCE ──
     if data.get("experience"):
-        section_header("Experience")
+        section_header("Professional Experience")
         for exp in data["experience"]:
-            story.append(Paragraph(f"<b>{exp.get('title','')}</b> — {exp.get('company','')}", body_style))
-            story.append(Paragraph(exp.get("duration", ""), sub_style))
-            for bullet in exp.get("bullets", []):
-                story.append(Paragraph(f"• {bullet}", bullet_style))
-            story.append(Spacer(1, 6))
+            title = exp.get("title", "").strip()
+            company = exp.get("company", "").strip()
+            duration = exp.get("duration", "").strip()
 
-    # Projects
+            # Role + Company on one line, Date on next - ATS standard
+            story.append(Paragraph(f"<b>{title}</b>, {company}", role_style))
+            story.append(Paragraph(duration, date_style))
+
+            for bullet in exp.get("bullets", []):
+                bullet = bullet.strip()
+                if bullet:
+                    # Ensure bullet starts with action verb
+                    story.append(Paragraph(f"•  {bullet}", bullet_style))
+            story.append(Spacer(1, 4))
+
+    # ── PROJECTS ──
     if data.get("projects"):
         section_header("Projects")
         for proj in data["projects"]:
-            story.append(Paragraph(f"<b>{proj.get('name','')}</b>", body_style))
-            story.append(Paragraph(proj.get("description", ""), bullet_style))
-            if proj.get("tech"):
-                story.append(Paragraph(f"Tech: {proj['tech']}", sub_style))
+            pname = proj.get("name", "").strip()
+            desc = proj.get("description", "").strip()
+            tech = proj.get("tech", "").strip()
+
+            story.append(Paragraph(f"<b>{pname}</b>", role_style))
+            if desc:
+                story.append(Paragraph(f"•  {desc}", bullet_style))
+            if tech:
+                story.append(Paragraph(f"<b>Technologies:</b> {tech}", body_style))
             story.append(Spacer(1, 4))
 
-    # Education
+    # ── EDUCATION ──
     if data.get("education"):
         section_header("Education")
         for edu in data["education"]:
-            story.append(Paragraph(f"<b>{edu.get('degree','')}</b> — {edu.get('institution','')}", body_style))
-            story.append(Paragraph(f"{edu.get('year','')}  {edu.get('details','')}", sub_style))
+            degree = edu.get("degree", "").strip()
+            institution = edu.get("institution", "").strip()
+            year = edu.get("year", "").strip()
+            details = edu.get("details", "").strip()
 
-    # Certifications
+            story.append(Paragraph(f"<b>{degree}</b>, {institution}", role_style))
+            detail_line = " | ".join(filter(None, [year, details]))
+            if detail_line:
+                story.append(Paragraph(detail_line, date_style))
+            story.append(Spacer(1, 4))
+
+    # ── CERTIFICATIONS ──
     if data.get("certifications"):
-        section_header("Certifications")
-        for cert in data["certifications"]:
-            story.append(Paragraph(f"• {cert}", bullet_style))
+        certs = [c.strip() for c in data["certifications"] if c.strip()]
+        if certs:
+            section_header("Certifications")
+            for cert in certs:
+                story.append(Paragraph(f"•  {cert}", bullet_style))
 
     doc.build(story)
     tailored_pdf = buffer.getvalue()
