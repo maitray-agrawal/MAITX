@@ -1,3 +1,4 @@
+@"
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -36,29 +37,13 @@ app.include_router(resume_router)
 
 @app.on_event("startup")
 async def startup_event():
+    from app.database import ensure_indexes
+    ensure_indexes()
     start_scheduler()
     print("TnP Tracker MAITX running")
 
 @app.get("/")
 async def root():
     return {"status": "MAITX TnP Tracker is live"}
+"@ | Out-File -Encoding utf8 app\main.py
 
-@app.get("/debug/env")
-async def debug_env():
-    import os
-    key = os.getenv("FAST2SMS_KEY", "NOT SET")
-    return {"key_length": len(key), "key_preview": key[:6] + "..." if len(key) > 6 else "TOO SHORT"}
-
-@app.get("/debug/env")
-async def debug_env():
-    import os
-    key = os.getenv("FAST2SMS_KEY", "NOT SET")
-    return {"key_length": len(key), "key_preview": key[:6] + "..." if len(key) > 6 else "TOO SHORT"}
-
-
-@app.on_event("startup")
-async def startup_event():
-    from app.database import ensure_indexes
-    ensure_indexes()
-    start_scheduler()
-    print("TnP Tracker MAITX running")
