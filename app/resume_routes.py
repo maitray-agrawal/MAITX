@@ -255,8 +255,8 @@ STRICT RULES — VIOLATION IS NOT ACCEPTABLE:
 6. SKILLS section must have minimum 20 skills organized by category
 7. SUMMARY must: mention exact job title, top 3 JD requirements, and candidate's strongest achievement
 8. Every bullet must start with a strong action verb (Engineered, Architected, Optimized, Spearheaded, etc.)
-9. Quantify EVERYTHING possible — use numbers already in resume, estimate where logical
-10. Projects must highlight business impact, not just technical description
+9. Quantify using ONLY numbers already present in the resume — NEVER invent percentages or metrics
+10. If no metric exists for a bullet, improve the wording without adding fake numbers
 11. Fix any typos in contact info — double check email carefully character by character
 
 ORIGINAL RESUME:
