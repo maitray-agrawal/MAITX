@@ -238,7 +238,26 @@ async def tailor_resume(job_id: str, style: str = Form("ats"), current_user: str
     Prioritize keywords from the job description. Use action verbs and quantify achievements.""" if style == "ats" else """Format as a professional visually appealing resume. 
     Keep the candidate's original structure but enhance content for the target role."""
 
-    prompt = f"""You are an expert resume writer. Rewrite this resume tailored specifically for the job below.
+    prompt = f"""You are a panel of four experts reviewing this resume simultaneously:
+1. ATS SYSTEM: You scan for exact keyword matches, proper formatting, section headers, and parsability
+2. SENIOR RECRUITER (10 years exp): You look for clear career progression, quantified achievements, and relevance to role
+3. HIRING MANAGER: You assess technical depth, project impact, and cultural fit signals
+4. INTERVIEW COACH: You ensure every bullet tells a story using STAR method with measurable outcomes
+
+YOUR MISSION: Produce the strongest possible resume for this candidate for this specific job.
+
+STRICT RULES — VIOLATION IS NOT ACCEPTABLE:
+1. NEVER invent fake experience, companies, dates, or achievements
+2. PRESERVE exact name, email, phone, university, CGPA, company names, job titles, dates
+3. KEEP every single experience, internship, and project — removing any is forbidden
+4. REWRITE every bullet point using: Action Verb + Task + Result + Metric format
+5. INJECT job description keywords NATURALLY into bullets, summary, and skills
+6. SKILLS section must have minimum 20 skills organized by category
+7. SUMMARY must: mention exact job title, top 3 JD requirements, and candidate's strongest achievement
+8. Every bullet must start with a strong action verb (Engineered, Architected, Optimized, Spearheaded, etc.)
+9. Quantify EVERYTHING possible — use numbers already in resume, estimate where logical
+10. Projects must highlight business impact, not just technical description
+11. Fix any typos in contact info — double check email carefully character by character
 
 ORIGINAL RESUME:
 {resume_text[:4000]}
@@ -255,7 +274,14 @@ Return ONLY a JSON object with this exact structure:
   "phone": "phone",
   "linkedin": "linkedin url or empty string",
   "summary": "2-3 sentence professional summary tailored to this role",
-  "skills": ["skill1", "skill2", "skill3"],
+  "skills_by_category": {{
+    "AI & Machine Learning": ["skill1", "skill2"],
+    "Programming Languages": ["Python", "Java"],
+    "Frameworks & Tools": ["FastAPI", "Django"],
+    "Cloud & DevOps": ["AWS", "Docker"],
+    "Data & Databases": ["MongoDB", "SQL"]
+  }},
+  "skills": ["flat list of ALL skills combined - minimum 20"],
   "experience": [
     {{
       "title": "job title",
@@ -335,11 +361,15 @@ Return ONLY the JSON. No explanation."""
         section_header("Professional Summary")
         story.append(Paragraph(data["summary"], body_style))
 
-    # Skills
-    if data.get("skills"):
+    # Skills by category
+    if data.get("skills_by_category"):
         section_header("Skills")
-        skills_text = " · ".join(data["skills"])
-        story.append(Paragraph(skills_text, body_style))
+        for category, skills in data["skills_by_category"].items():
+            if skills:
+                story.append(Paragraph(f"<b>{category}:</b> {', '.join(skills)}", body_style))
+    elif data.get("skills"):
+        section_header("Skills")
+        story.append(Paragraph(" · ".join(data["skills"]), body_style))
 
     # Experience
     if data.get("experience"):
