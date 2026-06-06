@@ -16,3 +16,4 @@ slowapi
 PyJWT
 httpx
 brevo-python
+reportlab
