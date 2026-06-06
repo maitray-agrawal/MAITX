@@ -207,7 +207,7 @@ function ResumeResults({ result, onBack }) {
   );
 }
 
-function ResumeTailor({ token }) {
+function ResumeTailor({ token, prefilledJob, onBack }) {
   const [resumes, setResumes] = useState([]);
   const [activeTab, setActiveTab] = useState("manage");
   const [uploading, setUploading] = useState(false);
@@ -215,6 +215,7 @@ function ResumeTailor({ token }) {
   const [uploadFile, setUploadFile] = useState(null);
   const [setAsActive, setSetAsActive] = useState(true);
   const [jd, setJd] = useState("");
+  const [autoAnalyzing, setAutoAnalyzing] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
@@ -233,6 +234,21 @@ function ResumeTailor({ token }) {
   };
 
   useEffect(() => { fetchResumes(); }, []);
+
+  useEffect(() => {
+    if (prefilledJob) {
+      const jdText = [
+        prefilledJob.company_name,
+        prefilledJob.role,
+        prefilledJob.eligibility,
+        prefilledJob.extra_notes,
+        prefilledJob.work_format,
+        prefilledJob.location
+      ].filter(Boolean).join("\n");
+      setJd(jdText);
+      setActiveTab("analyze");
+    }
+  }, [prefilledJob]);
 
   const uploadResume = async () => {
     if (!uploadFile) { setError("Select a PDF file"); return; }
@@ -485,7 +501,7 @@ function SkeletonCard() {
   );
 }
 
-function JobCard({ job, onMarkApplied, onDelete, index }) {
+function JobCard({ job, onMarkApplied, onDelete, onTailor, index }) {
   return (
     <div className="job-card" style={{ animationDelay: `${index * 0.04}s`, borderLeft: `3px solid ${job.applied ? G.green : G.accent}`, borderRadius: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
@@ -632,6 +648,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [userId, setUserId] = useState(getStoredUser() || "");
   const [activeTab, setActiveTab] = useState("jobs");
+  const [prefilledJob, setPrefilledJob] = useState(null);
+  const [activeTab, setActiveTab] = useState("jobs");
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -678,7 +696,7 @@ export default function App() {
 
   if (window.location.pathname === "/admin") return <AdminPanel />;
   if (!userId) return <LoginScreen onLogin={setUserId} />;
-  if (activeTab === "resume") return <ResumeTailor token={getToken()} />;
+  if (activeTab === "resume") return <ResumeTailor token={getToken()} prefilledJob={prefilledJob} onBack={() => { setActiveTab("jobs"); setPrefilledJob(null); }} />;
 
   const pending = jobs.filter(j => !j.applied).length;
   const applied = jobs.filter(j => j.applied).length;
@@ -746,7 +764,7 @@ export default function App() {
             </div>
           )
           : filtered.map((job, i) => (
-            <JobCard key={job._id} job={job} index={i} onMarkApplied={markApplied} onDelete={deleteJob} />
+            <JobCard key={job._id} job={job} index={i} onMarkApplied={markApplied} onDelete={deleteJob} onTailor={(job) => { setPrefilledJob(job); setActiveTab("resume"); }} />
           ))
       }
     </div>
