@@ -593,6 +593,9 @@ function JobCard({ job, onMarkApplied, onDelete, onTailor, index }) {
         {job.apply_link && (
           <a href={job.apply_link} target="_blank" rel="noreferrer" style={{ background: G.accent, color: "#fff", padding: "6px 14px", borderRadius: 8, textDecoration: "none", fontSize: "0.78rem", fontWeight: 600 }}>Apply →</a>
         )}
+        {onTailor && (
+          <button className="btn" onClick={() => onTailor(job)} style={{ background: "#7c6af712", color: "#7c6af7", padding: "6px 12px", borderRadius: 8, border: "1px solid #7c6af740", fontSize: "0.78rem", fontFamily: "inherit" }}>✨ Tailor</button>
+        )}
         {!job.applied && (
           <button className="btn" onClick={() => onMarkApplied(job._id)} style={{ background: G.greenSoft, color: G.green, padding: "6px 12px", borderRadius: 8, border: `1px solid ${G.greenBorder}`, fontSize: "0.78rem" }}>Mark applied</button>
         )}
