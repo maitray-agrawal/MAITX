@@ -263,8 +263,8 @@ function ResumeResults({ result, onBack, token, jobId }) {
             </div>
           ))}
         </div>
-      <TailorSection token={token} jobId={jobId} />
       )}
+      <TailorSection token={token} jobId={jobId} />
     </div>
   );
 }
