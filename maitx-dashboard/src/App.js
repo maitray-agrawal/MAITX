@@ -70,19 +70,20 @@ function ScoreRing({ score }) {
 }
 
 
-function TailorSection({ token, jobId, onDone }) {
+function TailorSection({ token, jobId, prefilledJob, onDone }) {
   const [style, setStyle] = useState("ats");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
+  const effectiveJobId = jobId || prefilledJob?._id;
   const tailor = async () => {
-    if (!jobId) { setError("No job selected. Go back and click Tailor from a job card."); return; }
+    if (!effectiveJobId) { setError("No job selected. Go back and click Tailor from a job card."); return; }
     setLoading(true); setError("");
     try {
       const form = new FormData();
       form.append("style", style);
-      const res = await fetch(`${API_BASE}/api/resume/tailor/${jobId}`, {
+      const res = await fetch(`${API_BASE}/api/resume/tailor/${effectiveJobId}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form
@@ -130,7 +131,7 @@ function TailorSection({ token, jobId, onDone }) {
   );
 }
 
-function ResumeResults({ result, onBack, token, jobId }) {
+function ResumeResults({ result, onBack, token, jobId, prefilledJob }) {
   const [tab, setTab] = useState("overview");
   const tabs = ["overview", "keywords", "improvements", "bullets", "ats"];
 
@@ -264,7 +265,7 @@ function ResumeResults({ result, onBack, token, jobId }) {
           ))}
         </div>
       )}
-      <TailorSection token={token} jobId={jobId} />
+      <TailorSection token={token} jobId={jobId} prefilledJob={prefilledJob} />
     </div>
   );
 }
@@ -357,7 +358,7 @@ function ResumeTailor({ token, prefilledJob, onBack }) {
     } finally { setAnalyzing(false); }
   };
 
-  if (result) return <ResumeResults result={result} onBack={() => setResult(null)} token={token} jobId={prefilledJob?._id} />;
+  if (result) return <ResumeResults result={result} onBack={() => setResult(null)} token={token} jobId={prefilledJob?._id} prefilledJob={prefilledJob} />;
 
   const cardStyle = { background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}`, marginBottom: 12 };
   const inputStyle = { width: "100%", background: G.b1, border: `1px solid ${G.border}`, borderRadius: 10, padding: "10px 14px", color: G.t1, fontSize: "0.88rem", fontFamily: "inherit", boxSizing: "border-box" };
