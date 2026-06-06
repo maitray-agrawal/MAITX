@@ -76,7 +76,7 @@ function TailorSection({ token, jobId, prefilledJob, onDone }) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
-  const effectiveJobId = jobId || prefilledJob?._id;
+  const effectiveJobId = jobId || prefilledJob?._id; console.log('TailorDebug:', JSON.stringify({ jobId: jobId, pid: prefilledJob && prefilledJob._id }));
   const tailor = async () => {
     if (!effectiveJobId) { setError("No job selected. Go back and click Tailor from a job card."); return; }
     setLoading(true); setError("");
