@@ -710,6 +710,107 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+
+function VaultTab({ token }) {
+  const [vault, setVault] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const fileRef = useRef();
+
+  const h = { headers: { Authorization: `Bearer ${token}` } };
+
+  const fetchVault = async () => {
+    try {
+      const r = await axios.get(`${API_BASE}/api/vault`, h);
+      setVault(r.data);
+    } catch(e) { console.error(e); }
+  };
+
+  useEffect(() => { fetchVault(); }, []);
+
+  const uploadCert = async (file) => {
+    if (!file) return;
+    setUploading(true); setError(""); setSuccess("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const r = await axios.post(`${API_BASE}/api/vault/upload-certificate`, form, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
+      });
+      setSuccess("Certificate uploaded and analyzed!");
+      await fetchVault();
+    } catch(e) {
+      setError(e.response?.data?.detail || "Upload failed");
+    } finally { setUploading(false); }
+  };
+
+  const certs = vault?.certifications || [];
+  const trustColor = (t) => t === "verified" ? G.green : t === "suspicious" ? G.red : G.amber;
+  const trustBg = (t) => t === "verified" ? G.greenSoft : t === "suspicious" ? G.redSoft : G.amberSoft;
+  const trustBorder = (t) => t === "verified" ? G.greenBorder : t === "suspicious" ? G.red + "40" : G.amberSoft;
+
+  return (
+    <div>
+      {/* Upload card */}
+      <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}`, marginBottom: 16 }}>
+        <p style={{ fontSize: "0.68rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Upload Certificate</p>
+        <div
+          onClick={() => !uploading && fileRef.current.click()}
+          style={{ border: `2px dashed ${uploading ? G.accent : G.border}`, borderRadius: 12, padding: "28px", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer", background: uploading ? G.accentSoft : "transparent", transition: "all 0.2s" }}>
+          {uploading
+            ? <p style={{ color: G.accent, fontSize: "0.88rem" }}>⏳ Analyzing certificate...</p>
+            : <><p style={{ fontSize: "1.5rem", marginBottom: 8 }}>📄</p>
+               <p style={{ color: G.t2, fontSize: "0.88rem" }}>Click to upload PDF, JPG, or PNG</p>
+               <p style={{ color: G.t3, fontSize: "0.72rem", marginTop: 4 }}>Max 5MB · 2 uploads/day</p></>
+          }
+        </div>
+        <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }}
+          onChange={e => { if (e.target.files[0]) uploadCert(e.target.files[0]); e.target.value = ""; }} />
+        {success && <p style={{ color: G.green, fontSize: "0.82rem", marginTop: 10 }}>✓ {success}</p>}
+        {error && <p style={{ color: G.red, fontSize: "0.82rem", marginTop: 10 }}>✗ {error}</p>}
+      </div>
+
+      {/* Certificates list */}
+      <div style={{ background: G.b2, borderRadius: 16, padding: 20, border: `1px solid ${G.border}` }}>
+        <p style={{ fontSize: "0.68rem", color: G.t3, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>
+          {certs.length} Certificate{certs.length !== 1 ? "s" : ""}
+        </p>
+        {!vault
+          ? [1,2].map(i => <div key={i} className="shimmer" style={{ height: 60, borderRadius: 10, marginBottom: 8 }} />)
+          : certs.length === 0
+            ? <div style={{ textAlign: "center", padding: "32px 0", color: G.t3 }}>
+                <p style={{ fontSize: "1.8rem", marginBottom: 8 }}>🏆</p>
+                <p style={{ fontSize: "0.88rem" }}>No certificates yet</p>
+                <p style={{ fontSize: "0.75rem", marginTop: 4 }}>Upload a certificate PDF to get started</p>
+              </div>
+            : [...certs].reverse().map((c, i) => (
+                <div key={i} style={{ padding: "14px 0", borderBottom: i < certs.length - 1 ? `1px solid ${G.border}` : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: "0.9rem", fontWeight: 600, color: G.t1, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {c.certificate_name || c.filename || "Certificate"}
+                      </p>
+                      {c.issuer && <p style={{ fontSize: "0.78rem", color: G.accent, marginBottom: 2 }}>{c.issuer}</p>}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                        {c.date && <span style={{ fontSize: "0.68rem", color: G.t3, background: G.b1, border: `1px solid ${G.border}`, borderRadius: 6, padding: "2px 8px" }}>📅 {c.date}</span>}
+                        {c.candidate_name && <span style={{ fontSize: "0.68rem", color: G.t3, background: G.b1, border: `1px solid ${G.border}`, borderRadius: 6, padding: "2px 8px" }}>👤 {c.candidate_name}</span>}
+                      </div>
+                    </div>
+                    {c.trust_score && (
+                      <span style={{ fontSize: "0.68rem", fontWeight: 600, color: trustColor(c.trust_score), background: trustBg(c.trust_score), border: `1px solid ${trustBorder(c.trust_score)}`, borderRadius: 20, padding: "3px 10px", flexShrink: 0, textTransform: "capitalize" }}>
+                        {c.trust_score === "verified" ? "✓ " : c.trust_score === "suspicious" ? "⚠ " : "~ "}{c.trust_score}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+        }
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -764,6 +865,28 @@ export default function App() {
 
   if (window.location.pathname === "/admin") return <AdminPanel />;
   if (!userId) return <LoginScreen onLogin={setUserId} />;
+  if (activeTab === "vault") return (
+    <div style={{ minHeight: "100vh", background: G.bg, padding: "24px 16px 48px", maxWidth: 820, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <p style={{ fontSize: "0.65rem", letterSpacing: "0.18em", color: G.accent, textTransform: "uppercase", marginBottom: 4 }}>Knowledge</p>
+          <h1 style={{ fontSize: "2rem", fontWeight: 800, fontFamily: "'Syne',sans-serif", color: G.t1 }}>Vault</h1>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn" onClick={handleLogout} style={{ background: "transparent", color: G.t3, padding: "7px 14px", borderRadius: 9, border: `1px solid ${G.border}`, fontSize: "0.8rem", fontFamily: "'DM Sans',sans-serif" }}>Logout</button>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {[["jobs", "💼 Jobs"], ["resume", "✨ Tailor Resume"], ["vault", "🗂️ Vault"]].map(([id, label]) => (
+          <button key={id} onClick={() => setActiveTab(id)}
+            style={{ padding: "8px 18px", borderRadius: 10, border: `1px solid ${activeTab === id ? G.accent : G.border}`, background: activeTab === id ? G.accentSoft : "transparent", color: activeTab === id ? G.accent : G.t2, cursor: "pointer", fontSize: "0.84rem", fontFamily: "inherit", fontWeight: activeTab === id ? 600 : 400 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <VaultTab token={getToken()} />
+    </div>
+  );
   if (activeTab === "resume") return <ResumeTailor token={getToken()} prefilledJob={prefilledJob} onBack={() => { setActiveTab("jobs"); setPrefilledJob(null); }} />;
 
   const pending = jobs.filter(j => !j.applied).length;
@@ -784,7 +907,7 @@ export default function App() {
 
       {/* Nav tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        {[["jobs", "💼 Jobs"], ["resume", "✨ Tailor Resume"]].map(([id, label]) => (
+        {[["jobs", "💼 Jobs"], ["resume", "✨ Tailor Resume"], ["vault", "🗂️ Vault"]].map(([id, label]) => (
           <button key={id} onClick={() => setActiveTab(id)}
             style={{ padding: "8px 18px", borderRadius: 10, border: `1px solid ${activeTab === id ? G.accent : G.border}`, background: activeTab === id ? G.accentSoft : "transparent", color: activeTab === id ? G.accent : G.t2, cursor: "pointer", fontSize: "0.84rem", fontFamily: "inherit", fontWeight: activeTab === id ? 600 : 400 }}>
             {label}
