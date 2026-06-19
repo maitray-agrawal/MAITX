@@ -9,6 +9,7 @@ from slowapi.errors import RateLimitExceeded
 from app.webhook import router as webhook_router
 from app.api import router as api_router
 from app.auth_routes import router as auth_router
+from app.vault import router as vault_router
 from app.admin_routes import router as admin_router
 from app.resume_routes import router as resume_router
 from app.scheduler import start_scheduler
@@ -27,6 +28,7 @@ app.add_middleware(
 app.include_router(webhook_router)
 app.include_router(api_router)
 app.include_router(auth_router)
+app.include_router(vault_router)
 app.include_router(admin_router)
 app.include_router(resume_router)
 

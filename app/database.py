@@ -17,6 +17,10 @@ fs = GridFS(db, collection="resume_files")
 # OTP store
 otp_collection = db["otp_store"]
 
+# Knowledge Vault
+knowledge_vault = db["knowledge_vault"]
+upload_logs = db["upload_logs"]
+
 def ensure_indexes():
     try:
         otp_collection.create_index("created_at", expireAfterSeconds=600)
