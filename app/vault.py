@@ -132,6 +132,9 @@ async def upload_certificate(file: UploadFile = File(...), current_user: str = D
     if mime == "application/pdf":
         pages_text = extract_text_from_pdf(contents)
 
+    for idx, pt in enumerate(pages_text):
+        print("DEBUG page " + str(idx) + " len=" + str(len(pt.strip())) + " preview=" + repr(pt.strip()[:80]))
+
     if len(pages_text) > MAX_PAGES:
         raise HTTPException(400, "Too many pages (" + str(len(pages_text)) + "). Max " + str(MAX_PAGES) + " pages per upload.")
 
