@@ -1,5 +1,6 @@
 ﻿import hashlib
 import json
+import re
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -12,6 +13,7 @@ router = APIRouter()
 MAX_FILE_SIZE = 5 * 1024 * 1024
 DAILY_PDF_LIMIT = 2
 ALLOWED_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png"}
+MAX_PAGES = 60  # hard safety cap so an absurd upload can't run away
 
 
 def detect_mime(contents, filename):
@@ -34,43 +36,28 @@ def detect_mime(contents, filename):
 def extract_text_from_pdf(contents):
     import fitz
     doc = fitz.open(stream=contents, filetype="pdf")
-    pages_text = []
-    for page in doc:
-        pages_text.append(page.get_text())
+    pages_text = [page.get_text() for page in doc]
     doc.close()
     return pages_text
 
 
-def chunk_pages(pages_text, pages_per_chunk=2):
-    """Group pages into small chunks so each AI call covers at most ~2 certificates,
-    avoiding truncation/under-recall on long merged PDFs."""
-    chunks = []
-    current = []
-    for p in pages_text:
-        if p.strip():
-            current.append(p)
-        if len(current) >= pages_per_chunk:
-            chunks.append("\n".join(current))
-            current = []
-    if current:
-        chunks.append("\n".join(current))
-    return chunks
-
-
-def extract_certificates_from_chunk(chunk_text, user_email):
+def extract_certificate_from_page(page_text, user_email):
+    """One AI call per page. Each certificate is almost always exactly one page,
+    so this maximizes recall — a single call never has to juggle multiple certs."""
     from app.extractor_agent import get_client
 
     prompt = (
-        "The text below contains one or more certificates (e.g. from a merged PDF). "
-        "Identify EVERY distinct certificate present in THIS TEXT ONLY and extract its "
-        "details. Return ONLY a JSON object with this exact shape, no preamble, no markdown:\n"
-        '{"certificates": [{"certificate_name": "", "issuer": "", "date": "", '
-        '"candidate_name": "", "is_valid_certificate": true, "trust_score": "verified"}]}\n'
+        "The text below is ONE PAGE from a document. It may contain exactly one "
+        "certificate, or it may contain no certificate at all (e.g. a cover page or "
+        "blank separator). Extract the certificate details if present. Return ONLY a "
+        "JSON object with this exact shape, no preamble, no markdown:\n"
+        '{"found": true, "certificate_name": "", "issuer": "", "date": "", '
+        '"candidate_name": "", "is_valid_certificate": true, "trust_score": "verified"}\n'
         "trust_score must be one of: verified, unverified, suspicious.\n"
         "Set trust_score to suspicious if candidate_name does not plausibly match the account holder.\n"
         "Account holder email: " + user_email + "\n"
-        'If you cannot find any certificate in this text, return {"certificates": []}.\n'
-        "Text:\n" + chunk_text[:6000]
+        'If this page does NOT contain a certificate, return {"found": false}.\n'
+        "Page text:\n" + page_text[:4000]
     )
 
     client = get_client()
@@ -78,38 +65,40 @@ def extract_certificates_from_chunk(chunk_text, user_email):
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
-        max_tokens=1500,
+        max_tokens=500,
     )
     parsed = json.loads(response.choices[0].message.content)
-    certs = parsed.get("certificates", [])
-    if isinstance(certs, dict):
-        certs = [certs]
-    return certs
+    if not parsed.get("found"):
+        return None
+    parsed.pop("found", None)
+    return parsed
 
 
-def extract_all_certificates(pages_text, user_email):
-    chunks = chunk_pages(pages_text, pages_per_chunk=2)
-    all_certs = []
-    for chunk in chunks:
-        try:
-            certs = extract_certificates_from_chunk(chunk, user_email)
-            all_certs.extend(certs)
-        except Exception as e:
-            print("Chunk extraction failed: " + str(e))
-            continue
-    return all_certs
+def normalize_for_fingerprint(value):
+    s = str(value or "").strip().lower()
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
 
 
-def cert_fingerprint(cert):
-    key = (
-        str(cert.get("certificate_name", "")).strip().lower()
-        + "|"
-        + str(cert.get("issuer", "")).strip().lower()
-        + "|"
-        + str(cert.get("date", "")).strip().lower()
-        + "|"
-        + str(cert.get("candidate_name", "")).strip().lower()
-    )
+def content_fingerprint(cert):
+    """Catches the SAME certificate appearing across DIFFERENT uploaded files
+    (e.g. a standalone PDF and again inside a big merged PDF). Normalized +
+    collapsed so minor AI phrasing differences between calls don't break matching."""
+    key = "|".join([
+        normalize_for_fingerprint(cert.get("certificate_name")),
+        normalize_for_fingerprint(cert.get("issuer")),
+        normalize_for_fingerprint(cert.get("date")),
+        normalize_for_fingerprint(cert.get("candidate_name")),
+    ])
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def page_fingerprint(file_hash, page_index):
+    """Stable regardless of how the AI phrases its output. Re-uploading the exact
+    same file always reproduces these exact fingerprints, so a true duplicate
+    re-upload of the same file is always blocked deterministically."""
+    key = file_hash + "|page|" + str(page_index)
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
@@ -131,7 +120,7 @@ async def upload_certificate(file: UploadFile = File(...), current_user: str = D
 
     file_hash = hashlib.sha256(contents).hexdigest()
     if log and file_hash in log.get("hashes", []):
-        raise HTTPException(400, "This file has already been uploaded.")
+        raise HTTPException(400, "This exact file has already been uploaded.")
 
     upload_logs.update_one(
         {"user_id": current_user, "date": today},
@@ -143,43 +132,71 @@ async def upload_certificate(file: UploadFile = File(...), current_user: str = D
     if mime == "application/pdf":
         pages_text = extract_text_from_pdf(contents)
 
-    extracted_certs = []
-    if any(p.strip() for p in pages_text):
-        try:
-            extracted_certs = extract_all_certificates(pages_text, current_user)
-        except Exception as e:
-            print("Certificate extraction failed: " + str(e))
-            extracted_certs = []
+    if len(pages_text) > MAX_PAGES:
+        raise HTTPException(400, "Too many pages (" + str(len(pages_text)) + "). Max " + str(MAX_PAGES) + " pages per upload.")
 
-    if not extracted_certs:
-        extracted_certs = [{
+    vault = knowledge_vault.find_one({"user_id": current_user}) or {}
+    existing_certs = vault.get("certifications", [])
+    existing_page_fps = {c.get("page_fingerprint") for c in existing_certs if c.get("page_fingerprint")}
+    existing_content_fps = {c.get("content_fingerprint") for c in existing_certs if c.get("content_fingerprint")}
+
+    added = []
+    skipped_duplicates = 0
+    skipped_empty_pages = 0
+    failed_pages = []
+
+    for idx, page_text in enumerate(pages_text):
+        if not page_text.strip():
+            skipped_empty_pages += 1
+            continue
+
+        pfp = page_fingerprint(file_hash, idx)
+        if pfp in existing_page_fps:
+            skipped_duplicates += 1
+            continue
+
+        try:
+            cert_data = extract_certificate_from_page(page_text, current_user)
+        except Exception as e:
+            print("Page " + str(idx) + " extraction failed: " + str(e))
+            failed_pages.append(idx)
+            continue
+
+        if cert_data is None:
+            continue
+
+        cfp = content_fingerprint(cert_data)
+        if cfp in existing_content_fps:
+            skipped_duplicates += 1
+            existing_page_fps.add(pfp)
+            continue
+
+        cert_record = dict(cert_data)
+        cert_record["page_fingerprint"] = pfp
+        cert_record["content_fingerprint"] = cfp
+        cert_record["page_index"] = idx
+        cert_record["filename"] = file.filename
+        cert_record["file_hash"] = file_hash
+        cert_record["uploaded_at"] = datetime.utcnow()
+
+        existing_page_fps.add(pfp)
+        existing_content_fps.add(cfp)
+        added.append(cert_record)
+
+    if not pages_text:
+        added.append({
             "is_valid_certificate": None,
             "trust_score": "unverified",
             "certificate_name": None,
             "issuer": None,
             "date": None,
             "candidate_name": None,
-        }]
-
-    vault = knowledge_vault.find_one({"user_id": current_user}) or {}
-    existing_fps = {c.get("fingerprint") for c in vault.get("certifications", []) if c.get("fingerprint")}
-
-    added = []
-    skipped_duplicates = 0
-
-    for cert_data in extracted_certs:
-        fp = cert_fingerprint(cert_data)
-        if fp in existing_fps:
-            skipped_duplicates += 1
-            continue
-        existing_fps.add(fp)
-
-        cert_record = dict(cert_data)
-        cert_record["fingerprint"] = fp
-        cert_record["filename"] = file.filename
-        cert_record["file_hash"] = file_hash
-        cert_record["uploaded_at"] = datetime.utcnow()
-        added.append(cert_record)
+            "page_fingerprint": page_fingerprint(file_hash, 0),
+            "content_fingerprint": content_fingerprint({}),
+            "filename": file.filename,
+            "file_hash": file_hash,
+            "uploaded_at": datetime.utcnow(),
+        })
 
     if added:
         knowledge_vault.update_one(
@@ -194,8 +211,11 @@ async def upload_certificate(file: UploadFile = File(...), current_user: str = D
 
     return {
         "status": "uploaded",
+        "pages_processed": len(pages_text),
         "added_count": len(added),
         "skipped_duplicates": skipped_duplicates,
+        "skipped_empty_pages": skipped_empty_pages,
+        "failed_pages": failed_pages,
         "certificates": added,
     }
 
