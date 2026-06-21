@@ -41,21 +41,36 @@ def extract_text_from_pdf(contents):
     return pages_text
 
 
-def extract_certificates_from_text(full_text, user_email):
+def chunk_pages(pages_text, pages_per_chunk=2):
+    """Group pages into small chunks so each AI call covers at most ~2 certificates,
+    avoiding truncation/under-recall on long merged PDFs."""
+    chunks = []
+    current = []
+    for p in pages_text:
+        if p.strip():
+            current.append(p)
+        if len(current) >= pages_per_chunk:
+            chunks.append("\n".join(current))
+            current = []
+    if current:
+        chunks.append("\n".join(current))
+    return chunks
+
+
+def extract_certificates_from_chunk(chunk_text, user_email):
     from app.extractor_agent import get_client
 
     prompt = (
-        "The text below may contain ONE OR MORE certificates concatenated together "
-        "(e.g. from a merged PDF). Identify EVERY distinct certificate present and "
-        "extract its details. Return ONLY a JSON object with this exact shape, no "
-        "preamble, no markdown:\n"
+        "The text below contains one or more certificates (e.g. from a merged PDF). "
+        "Identify EVERY distinct certificate present in THIS TEXT ONLY and extract its "
+        "details. Return ONLY a JSON object with this exact shape, no preamble, no markdown:\n"
         '{"certificates": [{"certificate_name": "", "issuer": "", "date": "", '
         '"candidate_name": "", "is_valid_certificate": true, "trust_score": "verified"}]}\n'
         "trust_score must be one of: verified, unverified, suspicious.\n"
         "Set trust_score to suspicious if candidate_name does not plausibly match the account holder.\n"
         "Account holder email: " + user_email + "\n"
-        'If you cannot find any certificate, return {"certificates": []}.\n'
-        "Text:\n" + full_text[:12000]
+        'If you cannot find any certificate in this text, return {"certificates": []}.\n'
+        "Text:\n" + chunk_text[:6000]
     )
 
     client = get_client()
@@ -63,13 +78,26 @@ def extract_certificates_from_text(full_text, user_email):
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
-        max_tokens=3000,
+        max_tokens=1500,
     )
     parsed = json.loads(response.choices[0].message.content)
     certs = parsed.get("certificates", [])
     if isinstance(certs, dict):
         certs = [certs]
     return certs
+
+
+def extract_all_certificates(pages_text, user_email):
+    chunks = chunk_pages(pages_text, pages_per_chunk=2)
+    all_certs = []
+    for chunk in chunks:
+        try:
+            certs = extract_certificates_from_chunk(chunk, user_email)
+            all_certs.extend(certs)
+        except Exception as e:
+            print("Chunk extraction failed: " + str(e))
+            continue
+    return all_certs
 
 
 def cert_fingerprint(cert):
@@ -114,12 +142,11 @@ async def upload_certificate(file: UploadFile = File(...), current_user: str = D
     pages_text = []
     if mime == "application/pdf":
         pages_text = extract_text_from_pdf(contents)
-    full_text = "\n".join(pages_text)
 
     extracted_certs = []
-    if full_text.strip():
+    if any(p.strip() for p in pages_text):
         try:
-            extracted_certs = extract_certificates_from_text(full_text, current_user)
+            extracted_certs = extract_all_certificates(pages_text, current_user)
         except Exception as e:
             print("Certificate extraction failed: " + str(e))
             extracted_certs = []
