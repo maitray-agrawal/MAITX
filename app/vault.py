@@ -34,30 +34,55 @@ def detect_mime(contents, filename):
 def extract_text_from_pdf(contents):
     import fitz
     doc = fitz.open(stream=contents, filetype="pdf")
-    text = ""
+    pages_text = []
     for page in doc:
-        text += page.get_text()
+        pages_text.append(page.get_text())
     doc.close()
-    return text
+    return pages_text
 
 
-def extract_certificate_details(text, user_email):
+def extract_certificates_from_text(full_text, user_email):
     from app.extractor_agent import get_client
 
-    prompt = "Extract certificate details from this text and return ONLY JSON, no preamble, no markdown:\n"
-    prompt += "{\"certificate_name\": \"\", \"issuer\": \"\", \"date\": \"\", \"candidate_name\": \"\", \"is_valid_certificate\": true, \"trust_score\": \"verified\"}\n"
-    prompt += "trust_score must be one of: verified, unverified, suspicious.\n"
-    prompt += "Set trust_score to suspicious if candidate_name does not plausibly match the account holder.\n"
-    prompt += "Account holder email: " + user_email + "\n"
-    prompt += "Text:\n" + text[:3000]
+    prompt = (
+        "The text below may contain ONE OR MORE certificates concatenated together "
+        "(e.g. from a merged PDF). Identify EVERY distinct certificate present and "
+        "extract its details. Return ONLY a JSON object with this exact shape, no "
+        "preamble, no markdown:\n"
+        '{"certificates": [{"certificate_name": "", "issuer": "", "date": "", '
+        '"candidate_name": "", "is_valid_certificate": true, "trust_score": "verified"}]}\n'
+        "trust_score must be one of: verified, unverified, suspicious.\n"
+        "Set trust_score to suspicious if candidate_name does not plausibly match the account holder.\n"
+        "Account holder email: " + user_email + "\n"
+        'If you cannot find any certificate, return {"certificates": []}.\n'
+        "Text:\n" + full_text[:12000]
+    )
 
     client = get_client()
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
+        max_tokens=3000,
     )
-    return json.loads(response.choices[0].message.content)
+    parsed = json.loads(response.choices[0].message.content)
+    certs = parsed.get("certificates", [])
+    if isinstance(certs, dict):
+        certs = [certs]
+    return certs
+
+
+def cert_fingerprint(cert):
+    key = (
+        str(cert.get("certificate_name", "")).strip().lower()
+        + "|"
+        + str(cert.get("issuer", "")).strip().lower()
+        + "|"
+        + str(cert.get("date", "")).strip().lower()
+        + "|"
+        + str(cert.get("candidate_name", "")).strip().lower()
+    )
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
 @router.post("/api/vault/upload-certificate")
@@ -86,34 +111,66 @@ async def upload_certificate(file: UploadFile = File(...), current_user: str = D
         upsert=True,
     )
 
-    text = ""
+    pages_text = []
     if mime == "application/pdf":
-        text = extract_text_from_pdf(contents)
+        pages_text = extract_text_from_pdf(contents)
+    full_text = "\n".join(pages_text)
 
-    cert_data = {}
-    if text.strip():
+    extracted_certs = []
+    if full_text.strip():
         try:
-            cert_data = extract_certificate_details(text, current_user)
+            extracted_certs = extract_certificates_from_text(full_text, current_user)
         except Exception as e:
             print("Certificate extraction failed: " + str(e))
-            cert_data = {"is_valid_certificate": None, "trust_score": "unverified", "error": str(e)}
+            extracted_certs = []
 
-    cert_record = dict(cert_data)
-    cert_record["filename"] = file.filename
-    cert_record["file_hash"] = file_hash
-    cert_record["uploaded_at"] = datetime.utcnow()
+    if not extracted_certs:
+        extracted_certs = [{
+            "is_valid_certificate": None,
+            "trust_score": "unverified",
+            "certificate_name": None,
+            "issuer": None,
+            "date": None,
+            "candidate_name": None,
+        }]
 
-    knowledge_vault.update_one(
-        {"user_id": current_user},
-        {
-            "$push": {"certifications": cert_record},
-            "$set": {"updated_at": datetime.utcnow()},
-            "$setOnInsert": {"created_at": datetime.utcnow()},
-        },
-        upsert=True,
-    )
+    vault = knowledge_vault.find_one({"user_id": current_user}) or {}
+    existing_fps = {c.get("fingerprint") for c in vault.get("certifications", []) if c.get("fingerprint")}
 
-    return {"status": "uploaded", "certificate": cert_record}
+    added = []
+    skipped_duplicates = 0
+
+    for cert_data in extracted_certs:
+        fp = cert_fingerprint(cert_data)
+        if fp in existing_fps:
+            skipped_duplicates += 1
+            continue
+        existing_fps.add(fp)
+
+        cert_record = dict(cert_data)
+        cert_record["fingerprint"] = fp
+        cert_record["filename"] = file.filename
+        cert_record["file_hash"] = file_hash
+        cert_record["uploaded_at"] = datetime.utcnow()
+        added.append(cert_record)
+
+    if added:
+        knowledge_vault.update_one(
+            {"user_id": current_user},
+            {
+                "$push": {"certifications": {"$each": added}},
+                "$set": {"updated_at": datetime.utcnow()},
+                "$setOnInsert": {"created_at": datetime.utcnow()},
+            },
+            upsert=True,
+        )
+
+    return {
+        "status": "uploaded",
+        "added_count": len(added),
+        "skipped_duplicates": skipped_duplicates,
+        "certificates": added,
+    }
 
 
 @router.get("/api/vault")
